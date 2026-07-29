@@ -2751,6 +2751,7 @@ function BlobView({
             isOwner={isOwner}
             initialEditing={wantEdit}
             rawHref={rawHref}
+            ownerOpts={ownerOpts}
             meta={`${file.content.split(/\r\n|\r|\n/).length} lines · ${formatBytes(file.size)}`}
           />
         ) : null}
@@ -2770,11 +2771,12 @@ function BlobView({
             isOwner={isOwner}
             initialEditing={wantEdit}
             rawHref={rawHref}
+            ownerOpts={ownerOpts}
             meta={`${file.content.split(/\r\n|\r|\n/).length} lines · ${formatBytes(file.size)}`}
           />
         ) : null}
         {file && !markdown && (imageSrc || file.tooLarge || !file.content) ? (
-          <div className="file-view">
+          <div className="file-view gh-blob-image-view">
             <div className="md-panel-header gh-file-toolbar">
               <div className="gh-file-toolbar-left">
                 <span className="muted tiny gh-file-stats">
@@ -2807,7 +2809,9 @@ function BlobView({
               </div>
             </div>
             {imageSrc && !file.tooLarge ? (
-              <img className="blob-image" src={imageSrc} alt={filePath} />
+              <div className="blob-image-frame">
+                <img className="blob-image" src={imageSrc} alt={filePath} />
+              </div>
             ) : null}
             {(file.tooLarge || (!file.content && !imageSrc)) && !busy ? (
               <p className="muted" style={{ padding: "1rem" }}>

@@ -22,6 +22,7 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import type { Options as ReactMarkdownOptions } from "react-markdown";
 import type { Schema } from "hast-util-sanitize";
 import { shieldsUrlToDataUri } from "./shields-badge";
+import { Link } from "../spa-link";
 
 /**
  * Allowlist close to GitHub’s markdown HTML filter.
@@ -250,6 +251,7 @@ function MarkdownImg({
   markdownPath,
   loadRepoBlob,
   imageCacheScope,
+  repoImageHref,
   className,
   ...rest
 }: ImgHTMLAttributes<HTMLImageElement> & {
@@ -257,6 +259,8 @@ function MarkdownImg({
   loadRepoBlob?: LoadRepoMarkdownBlob;
   /** prefix:branch — scopes the module image URI cache per tip. */
   imageCacheScope?: string;
+  /** Tip-relative path → in-app blob explorer href (GitHub-style click-through). */
+  repoImageHref?: (repoPath: string) => string;
 }) {
   const srcStr = typeof src === "string" ? src : "";
   const shields = srcStr ? shieldsUrlToDataUri(srcStr) : null;
@@ -271,6 +275,8 @@ function MarkdownImg({
   const cachedUri = cacheKey
     ? repoMarkdownImageUriCache.get(cacheKey) ?? null
     : null;
+  const blobHref =
+    repoPath && repoImageHref ? repoImageHref(repoPath) : null;
 
   const [repoSrc, setRepoSrc] = useState<string | null>(cachedUri);
   const [failed, setFailed] = useState(false);
@@ -352,7 +358,7 @@ function MarkdownImg({
   }
   if (repoPath) {
     if (repoSrc) {
-      return (
+      const img = (
         <img
           src={repoSrc}
           alt={alt}
@@ -361,6 +367,21 @@ function MarkdownImg({
           {...rest}
         />
       );
+      // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+      // return img;
+      // NEW CODE - TESTING: click → blob explorer (same path as /blob/…)
+      if (blobHref) {
+        return (
+          <Link
+            to={blobHref}
+            className="md-repo-img-link"
+            title={`View ${repoPath}`}
+          >
+            {img}
+          </Link>
+        );
+      }
+      return img;
     }
     if (failed) {
       return (
@@ -384,10 +405,12 @@ export function createGfmMarkdownComponents(opts?: {
   markdownPath?: string;
   loadRepoBlob?: LoadRepoMarkdownBlob;
   imageCacheScope?: string;
+  repoImageHref?: (repoPath: string) => string;
 }): Components {
   const markdownPath = opts?.markdownPath;
   const loadRepoBlob = opts?.loadRepoBlob;
   const imageCacheScope = opts?.imageCacheScope;
+  const repoImageHref = opts?.repoImageHref;
   return {
     img: (props) => (
       <MarkdownImg
@@ -395,6 +418,7 @@ export function createGfmMarkdownComponents(opts?: {
         markdownPath={markdownPath}
         loadRepoBlob={loadRepoBlob}
         imageCacheScope={imageCacheScope}
+        repoImageHref={repoImageHref}
       />
     ),
   };
@@ -421,6 +445,7 @@ export function createGfmMarkdownProps(opts?: {
   markdownPath?: string;
   loadRepoBlob?: LoadRepoMarkdownBlob;
   imageCacheScope?: string;
+  repoImageHref?: (repoPath: string) => string;
 }): Pick<
   ReactMarkdownOptions,
   "remarkPlugins" | "rehypePlugins" | "components"

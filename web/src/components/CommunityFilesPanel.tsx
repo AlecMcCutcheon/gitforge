@@ -340,6 +340,7 @@ export function CommunityFilesPanel({
           prefix={prefix}
           label={label}
           branch={gitRef}
+          ownerOpts={ownerOpts}
         />
       ) : null}
     </div>

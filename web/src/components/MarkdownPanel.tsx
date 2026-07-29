@@ -14,7 +14,7 @@ import { freenetRawFileHref } from "../freenet/raw-entry";
 import { PageLoadingOverlay } from "./PageLoadingOverlay";
 import { CantEditRepoPanel } from "./CantEditRepoPanel";
 import { pushFilesToFreenet } from "../freenet/freenet-push";
-import { repoHref } from "../lib/repo-path";
+import { repoBlobHref, repoHref, type RepoHrefOpts } from "../lib/repo-path";
 import { FileCodeEditor } from "./FileCodeEditor";
 
 export type FileViewMode = "preview" | "code" | "blame";
@@ -187,6 +187,7 @@ export function ReadmePanel({
   prefix,
   label,
   branch,
+  ownerOpts,
 }: {
   path: string;
   content: string;
@@ -198,6 +199,7 @@ export function ReadmePanel({
   prefix?: string;
   label?: string;
   branch?: string;
+  ownerOpts?: RepoHrefOpts;
 }) {
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // Always pencil → blob?edit=1
@@ -213,6 +215,8 @@ export function ReadmePanel({
     return createGfmMarkdownProps({
       markdownPath: path,
       imageCacheScope: `${prefix}:${branch}`,
+      repoImageHref: (repoPath) =>
+        repoBlobHref(prefix, label, branch, repoPath, ownerOpts),
       loadRepoBlob: async (repoPath) => {
         try {
           const res = await api.blob(prefix, label, branch, repoPath);
@@ -243,7 +247,7 @@ export function ReadmePanel({
         }
       },
     });
-  }, [prefix, label, branch, path]);
+  }, [prefix, label, branch, path, ownerOpts]);
 
   return (
     <article className={`md-panel ${className}`.trim()}>
@@ -291,6 +295,7 @@ interface FileContentPanelProps {
   rawHref?: string | null;
   /** Open in edit mode (e.g. README pencil → ?edit=1). */
   initialEditing?: boolean;
+  ownerOpts?: RepoHrefOpts;
 }
 
 export function FileContentPanel({
@@ -308,6 +313,7 @@ export function FileContentPanel({
   isOwner = false,
   rawHref = null,
   initialEditing = false,
+  ownerOpts,
 }: FileContentPanelProps) {
   const initial: FileViewMode =
     defaultMode ?? (allowPreview ? "preview" : "code");
@@ -343,6 +349,8 @@ export function FileContentPanel({
       createGfmMarkdownProps({
         markdownPath: path,
         imageCacheScope: `${prefix}:${branch}`,
+        repoImageHref: (repoPath) =>
+          repoBlobHref(prefix, label, branch, repoPath, ownerOpts),
         loadRepoBlob: async (repoPath) => {
           try {
             const res = await api.blob(prefix, label, branch, repoPath);
@@ -372,7 +380,7 @@ export function FileContentPanel({
           }
         },
       }),
-    [prefix, label, branch, path],
+    [prefix, label, branch, path, ownerOpts],
   );
 
   const stats = useMemo(() => lineStats(content), [content]);

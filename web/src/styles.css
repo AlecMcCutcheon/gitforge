@@ -4698,6 +4698,56 @@ select:focus {
   padding: 16px;
 }
 
+/* OLD CODE - KEEP UNTIL CONFIRMED WORKING
+.blob-image { max-width:100%; height:auto; padding:16px } — tall screenshots
+overflowed gh-blob-panel and forced a scrollbar.
+*/
+/* NEW CODE - TESTING: fit inside remaining panel; contain (no stretch/crop) */
+.repo-page-body--file .gh-blob-image-view {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.blob-image-frame {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.blob-image-frame .blob-image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  padding: 0;
+}
+
+.md-preview .md-repo-img-link {
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+  border-radius: 6px;
+  outline-offset: 2px;
+}
+
+.md-preview .md-repo-img-link:hover .md-repo-img {
+  outline: 2px solid var(--fgColor-link, #2f81f7);
+  outline-offset: 2px;
+}
+
+.md-preview .md-repo-img-link .md-repo-img {
+  cursor: zoom-in;
+}
+
 .commit-list {
   list-style: none;
   margin: 0;
