@@ -1,0 +1,49 @@
+name: Bug report
+description: Something is broken or behaves incorrectly.
+title: "bug: "
+labels: ["T-bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Bug fixes that do not change intended behavior usually do not need prior approval.
+        If the “fix” would reshape UX or APIs, use a Feature / design proposal instead.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One or two sentences.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: e.g. freenet version, browser, website contract key if relevant
+  - type: textarea
+    id: notes
+    attributes:
+      label: Extra context
+      description: Logs, screenshots, related commits — optional.

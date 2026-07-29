@@ -103,6 +103,12 @@ See [`docs/08-website-publish.md`](docs/08-website-publish.md).
 | `FREENET_WS_URL` | `ws://127.0.0.1:7509/v1/contract/command` | Node WS |
 | `FREENET_HUB_PAGES_BASE` | `http://127.0.0.1:7509/v1/contract/web` | Pages base URL |
 
+## Contributing
+
+Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a feature PR.
+**Features and behavior changes need an approved issue first** (silence is not
+approval). See also [`AGENTS.md`](AGENTS.md) for layout and conventions.
+
 ## License
 
 **LGPL-3.0-only** — same family as freenet-git app tooling. See [`LICENSE`](LICENSE).

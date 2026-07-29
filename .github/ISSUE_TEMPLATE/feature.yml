@@ -1,0 +1,46 @@
+name: Feature / design proposal
+description: Propose a feature or behavior change — get approach approval before coding.
+title: "feat: "
+labels: ["T-feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Features and behavior changes need **maintainer approach approval** before a PR.
+        Silence is not approval. See [CONTRIBUTING.md](https://github.com/AlecMcCutcheon/gitatlas/blob/main/CONTRIBUTING.md).
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Who hits this, and what breaks or is missing today?
+      placeholder: When I …, GitAtlas … instead of …
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: Proposed approach
+      description: Intended UX / API / contract shape. Call out alternatives you considered.
+    validations:
+      required: true
+  - type: textarea
+    id: design
+    attributes:
+      label: Design choices
+      description: Trust model, schema/compatibility, Freenet hosting assumptions, what is explicitly out of scope.
+      placeholder: |
+        - Trust (node operator vs app identity): …
+        - Schema / migration: …
+        - Depends on stock freenet-core? / custom node APIs?: …
+        - Out of scope: …
+    validations:
+      required: true
+  - type: checkboxes
+    id: ack
+    attributes:
+      label: Before coding
+      options:
+        - label: I will wait for an explicit “yes, a PR for this is welcome” before opening a feature PR.
+          required: true
+        - label: I understand one logical change per PR, and I can defend the design (including any AI-assisted parts).
+          required: true
