@@ -2,58 +2,57 @@
 
 **GitAtlas** is a forge for git hosted on [Freenet](https://freenet.org) —
 browse, publish, and collaborate without a central GitHub-style server.
-Repositories live as Freenet contracts ([`freenet-git`](../freenet-git/));
-GitAtlas is the UI and the Hub contracts that make that usable day to day.
-
-Freenet forgets what is not kept hot (LRU hosting). GitAtlas leans into that:
-identity stays a portable **freenet-git bundle**, while an optional **HubVault**
-and **identity-delegate backup pins** keep tip packs, keys, and preferences
-recoverable across reloads and nodes — without replacing the bundle as the
-source of authentication.
+Repositories live as Freenet contracts via
+[`freenet-git`](https://github.com/freenet/freenet-git); GitAtlas is the UI
+and the Hub contracts that make that usable day to day.
 
 ## Why it exists
 
 - **Decentralized forge UX** — Discover, profiles, stars, settings, and tip-pack
   Code browse against your local Freenet node.
-- **Freenet-native durability** — Auto-updating tip backups and vault sync so
-  “the network dropped my pack” is recoverable from *your* pins, not a company
-  CDN.
 - **Identity you own** — Create / restore / download a freenet-git identity
-  bundle; vault and delegate layers are helpers, not a lock-in account.
+  bundle; HubVault and profile helpers ride with that identity, they are not a
+  lock-in account.
+- **Publish to test** — The real surface is a Freenet website contract, not a
+  local Express/Vite loop.
 
 ## Working today
 
 | Area | What works |
 |------|------------|
 | **Website SPA** | Published Freenet website contract (`npm run publish:website`) |
-| **Discover** | Seed demos + HubRegistry listings |
-| **Identity** | Create, recovery phrase, import bundle, sign-out |
-| **HubVault** | Passwordless vault auto-provision; settings + key sync |
-| **Repos** | New empty repo, register on Hub, tip-pack Code / Commits / Tags / Branches |
+| **Discover** | Seed demos + HubRegistry listings (signed-in home) |
+| **Identity** | Create, recovery phrase, import bundle, identity.bundle download, sign-out |
+| **HubVault** | Passwordless vault auto-provision; Settings → Sync (vault ↔ this node) |
+| **Repos** | New empty repo, import, register on Hub, tip-pack Code / Commits / Tags / Branches |
 | **Stars** | HubStars contract; star / unstar; profile Stars tab |
 | **People** | Profile overview, repositories, stars |
-| **Backups** | Per-repo tip pins on the identity delegate; auto-update; separate “all my repos” / “all starred” toggles (one pin per prefix) |
 | **Languages** | Linguist-style sidebar bar over tip blobs |
+| **License / community files** | LICENSE detection and related helpers |
 | **Repo health** | Pack / Hub reachability + rescue paths |
 | **Inbox** | Profile inbox for system / invite-style messages |
+| **API keys** | Vault-scoped keys for CLI helpers (`gitatlas-vault`) |
+| **Downloads** | Re-export identity / related downloads from Settings |
 
-## Freenet-shaped design choices
+## Design notes
 
-- **Identity bundle first** — Downloadable freenet-git CLI bundle is the main
-  credential and offline backup.
-- **HubVault + delegate** — Sealed settings (including backup prefs) and tip-pin
-  metadata ride with the signed-in identity so a Freenet sandbox wipe does not
-  erase your pin index. Sign-out clears the identity session (and those
-  delegate pins); signing back in with auto-backup prefs on recreates them.
-- **Tip-pack browse** — Code view streams tipped packs over the node WS
+- **Identity bundle first** — The downloadable freenet-git CLI bundle is the
+  main credential and offline recovery path.
+- **HubVault** — Sealed settings and repo keys sync with the signed-in identity
+  so a Freenet sandbox wipe does not erase your vault index. Sign-out clears
+  the local session; signing back in with the same identity reattaches vault
+  state when it is still on the network.
+- **Tip-pack browse** — Code view streams tipped packs over the node WebSocket
   (IndexedDB + wasm), not a full local clone.
-- **Publish to test** — No local Express/Vite loop; the real surface is the
-  Freenet website contract.
+- **Hosting reality** — Freenet nodes keep contracts warm under demand. Tip packs
+  and other contracts can go cold if nothing on *this* node is retaining them;
+  rescue cannot invent bytes that local eviction already dropped. Keep important
+  work reachable from your node (use, republish, or other retention you trust).
 
 ## Layout
 
 ```
-freenet-gitatlas/
+gitatlas/
 ├── browse-tool/       # tip pack helper
 ├── decode-wasm/       # RepoState helpers for the browser
 ├── contracts/         # HubRegistry, HubVault, HubStars, HubRepo, …
@@ -77,7 +76,8 @@ freenet-gitatlas/
 ## Setup
 
 ```sh
-cd freenet-gitatlas
+git clone https://github.com/AlecMcCutcheon/gitatlas.git
+cd gitatlas
 npm install
 ```
 
@@ -95,7 +95,7 @@ npm run publish:website
 Open the URL from the publish output (typically
 `http://127.0.0.1:7509/v1/contract/web/<key>/`) and hard-refresh.
 
-See `docs/08-website-publish.md`.
+See [`docs/08-website-publish.md`](docs/08-website-publish.md).
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
@@ -105,10 +105,13 @@ See `docs/08-website-publish.md`.
 
 ## License
 
-**LGPL-3.0-only** — same as [`freenet-git`](../freenet-git/). See [`LICENSE`](LICENSE).
+**LGPL-3.0-only** — same family as freenet-git app tooling. See [`LICENSE`](LICENSE).
 
 ## Docs
 
-`docs/05-freenethub-content-architecture.md`, `docs/06-hub-registry.md`,
-`docs/08-website-publish.md`, `docs/09-hub-pages.md`, `docs/10-hub-vault-auth.md`,
-`docs/11-hub-stars.md`.
+[`docs/05-freenethub-content-architecture.md`](docs/05-freenethub-content-architecture.md),
+[`docs/06-hub-registry.md`](docs/06-hub-registry.md),
+[`docs/08-website-publish.md`](docs/08-website-publish.md),
+[`docs/09-hub-pages.md`](docs/09-hub-pages.md),
+[`docs/10-hub-vault-auth.md`](docs/10-hub-vault-auth.md),
+[`docs/11-hub-stars.md`](docs/11-hub-stars.md).
