@@ -117,8 +117,11 @@ export function isBrowserNativeMode(): boolean {
 }
 
 function bytesToBase64(buf: Uint8Array): string {
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // const chunk = 0x8000; // 32k spread can hit engine arg limits
+  // NEW CODE - TESTING: smaller chunks for String.fromCharCode spread
   let binary = "";
-  const chunk = 0x8000;
+  const chunk = 0x2000;
   for (let i = 0; i < buf.length; i += chunk) {
     binary += String.fromCharCode(...buf.subarray(i, i + chunk));
   }

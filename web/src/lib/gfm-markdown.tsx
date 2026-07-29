@@ -183,6 +183,22 @@ export type LoadRepoMarkdownBlob = (
   repoPath: string,
 ) => Promise<RepoMarkdownBlob | null>;
 
+/**
+ * Survives ReactMarkdown remounts (parent re-renders / StrictMode). Without
+ * this, in-flight tip fetches are cancelled on cleanup and README images
+ * settle on the alt-text fallback after soft-fill finishes.
+ */
+const repoMarkdownImageUriCache = new Map<string, string>();
+
+function markdownImageCacheKey(scope: string, repoPath: string): string {
+  return `${scope}\0${repoPath}`;
+}
+
+function dataUriFromBlob(blob: RepoMarkdownBlob): string {
+  const type = blob.mediaType || "application/octet-stream";
+  return `data:${type};base64,${blob.contentBase64}`;
+}
+
 /** True for http(s), data:, blob:, protocol-relative, and mailto-style URLs. */
 export function isExternalMarkdownSrc(src: string): boolean {
   const s = src.trim();
@@ -226,76 +242,102 @@ function MarkdownImg({
   title,
   markdownPath,
   loadRepoBlob,
+  imageCacheScope,
   className,
   ...rest
 }: ImgHTMLAttributes<HTMLImageElement> & {
   markdownPath?: string;
   loadRepoBlob?: LoadRepoMarkdownBlob;
+  /** prefix:branch — scopes the module image URI cache per tip. */
+  imageCacheScope?: string;
 }) {
-  const [repoSrc, setRepoSrc] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
-  // Stable loader ref — parent recreates loadRepoBlob each render; do not
-  // cancel in-flight tip fetches on identity churn.
-  const loadRepoBlobRef = useRef(loadRepoBlob);
-  loadRepoBlobRef.current = loadRepoBlob;
-
   const srcStr = typeof src === "string" ? src : "";
   const shields = srcStr ? shieldsUrlToDataUri(srcStr) : null;
   const repoPath =
     !shields && markdownPath && loadRepoBlob && srcStr
       ? resolveMarkdownAssetPath(markdownPath, srcStr)
       : null;
+  const cacheKey =
+    imageCacheScope && repoPath
+      ? markdownImageCacheKey(imageCacheScope, repoPath)
+      : null;
+  const cachedUri = cacheKey
+    ? repoMarkdownImageUriCache.get(cacheKey) ?? null
+    : null;
+
+  const [repoSrc, setRepoSrc] = useState<string | null>(cachedUri);
+  const [failed, setFailed] = useState(false);
+  const loadRepoBlobRef = useRef(loadRepoBlob);
+  loadRepoBlobRef.current = loadRepoBlob;
 
   useEffect(() => {
     const load = loadRepoBlobRef.current;
     if (!repoPath || !load) {
-      setRepoSrc(null);
-      setFailed(false);
       return;
     }
+    if (cacheKey) {
+      const hit = repoMarkdownImageUriCache.get(cacheKey);
+      if (hit) {
+        setRepoSrc(hit);
+        setFailed(false);
+        return;
+      }
+    }
+
     let cancelled = false;
-    setRepoSrc(null);
     setFailed(false);
 
     const attempt = (triesLeft: number): void => {
       void load(repoPath)
         .then((blob) => {
-          if (cancelled) return;
           if (!blob?.contentBase64) {
+            if (cancelled) return;
             if (triesLeft > 0) {
-              window.setTimeout(() => attempt(triesLeft - 1), 400);
+              window.setTimeout(() => attempt(triesLeft - 1), 500);
               return;
             }
+            console.warn(
+              "[freenet-hub] README image missing after tip load:",
+              repoPath,
+            );
             setFailed(true);
             return;
           }
-          const type = blob.mediaType || "application/octet-stream";
-          setRepoSrc(`data:${type};base64,${blob.contentBase64}`);
+          const uri = dataUriFromBlob(blob);
+          // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+          // if (cancelled) return; setRepoSrc(uri)
+          // NEW CODE - TESTING: always cache so remounts after soft-fill hit
+          if (cacheKey) repoMarkdownImageUriCache.set(cacheKey, uri);
+          if (!cancelled) {
+            setRepoSrc(uri);
+            setFailed(false);
+          }
         })
-        .catch(() => {
+        .catch((err: unknown) => {
           if (cancelled) return;
           if (triesLeft > 0) {
-            window.setTimeout(() => attempt(triesLeft - 1), 400);
+            window.setTimeout(() => attempt(triesLeft - 1), 500);
             return;
           }
+          console.warn(
+            "[freenet-hub] README image load failed:",
+            repoPath,
+            err instanceof Error ? err.message : err,
+          );
           setFailed(true);
         });
     };
-    // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-    // void load(repoPath).then(...).catch(...) — single shot
-    // NEW CODE - TESTING: retry while tip soft-fill / StrictMode tip reset settles
-    attempt(3);
+    attempt(4);
 
     return () => {
       cancelled = true;
     };
-  }, [repoPath]);
+  }, [repoPath, cacheKey]);
 
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // const local = typeof src === "string" ? shieldsUrlToDataUri(src) : null;
   // return <img src={local ?? src} alt={alt} title={title} {...rest} />;
   // NEW CODE - TESTING: shields locally + relative tip-pack assets as data URIs
-  // (do not spread rest.src — react-markdown passes the relative path)
   if (shields) {
     return (
       <img src={shields} alt={alt} title={title} className={className} {...rest} />
@@ -334,15 +376,18 @@ function MarkdownImg({
 export function createGfmMarkdownComponents(opts?: {
   markdownPath?: string;
   loadRepoBlob?: LoadRepoMarkdownBlob;
+  imageCacheScope?: string;
 }): Components {
   const markdownPath = opts?.markdownPath;
   const loadRepoBlob = opts?.loadRepoBlob;
+  const imageCacheScope = opts?.imageCacheScope;
   return {
     img: (props) => (
       <MarkdownImg
         {...props}
         markdownPath={markdownPath}
         loadRepoBlob={loadRepoBlob}
+        imageCacheScope={imageCacheScope}
       />
     ),
   };
@@ -368,6 +413,7 @@ export const GFM_MARKDOWN_PROPS: Pick<
 export function createGfmMarkdownProps(opts?: {
   markdownPath?: string;
   loadRepoBlob?: LoadRepoMarkdownBlob;
+  imageCacheScope?: string;
 }): Pick<
   ReactMarkdownOptions,
   "remarkPlugins" | "rehypePlugins" | "components"

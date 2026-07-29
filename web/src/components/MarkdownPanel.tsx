@@ -212,15 +212,33 @@ export function ReadmePanel({
     if (!prefix || !label || !branch) return GFM_MARKDOWN_PROPS;
     return createGfmMarkdownProps({
       markdownPath: path,
+      imageCacheScope: `${prefix}:${branch}`,
       loadRepoBlob: async (repoPath) => {
         try {
           const res = await api.blob(prefix, label, branch, repoPath);
-          if (!res.contentBase64) return null;
+          if (!res.contentBase64) {
+            console.warn(
+              "[freenet-hub] README image blob has no contentBase64:",
+              repoPath,
+              {
+                size: res.size,
+                tooLarge: res.tooLarge,
+                mediaType: res.mediaType,
+                binary: res.binary,
+              },
+            );
+            return null;
+          }
           return {
             mediaType: res.mediaType || "application/octet-stream",
             contentBase64: res.contentBase64,
           };
-        } catch {
+        } catch (err) {
+          console.warn(
+            "[freenet-hub] README image api.blob failed:",
+            repoPath,
+            err instanceof Error ? err.message : err,
+          );
           return null;
         }
       },
@@ -324,15 +342,32 @@ export function FileContentPanel({
     () =>
       createGfmMarkdownProps({
         markdownPath: path,
+        imageCacheScope: `${prefix}:${branch}`,
         loadRepoBlob: async (repoPath) => {
           try {
             const res = await api.blob(prefix, label, branch, repoPath);
-            if (!res.contentBase64) return null;
+            if (!res.contentBase64) {
+              console.warn(
+                "[freenet-hub] markdown image blob has no contentBase64:",
+                repoPath,
+                {
+                  size: res.size,
+                  tooLarge: res.tooLarge,
+                  mediaType: res.mediaType,
+                },
+              );
+              return null;
+            }
             return {
               mediaType: res.mediaType || "application/octet-stream",
               contentBase64: res.contentBase64,
             };
-          } catch {
+          } catch (err) {
+            console.warn(
+              "[freenet-hub] markdown image api.blob failed:",
+              repoPath,
+              err instanceof Error ? err.message : err,
+            );
             return null;
           }
         },
