@@ -6,6 +6,8 @@ Repositories live as Freenet contracts via
 [`freenet-git`](https://github.com/freenet/freenet-git); GitAtlas is the UI
 and the Hub contracts that make that usable day to day.
 
+![GitAtlas repository Code view — freenet-git tip-pack browse with About and Repo health](docs/images/repo-code-preview.png)
+
 ## Why it exists
 
 - **Decentralized forge UX** — Discover, profiles, stars, settings, and tip-pack
@@ -57,7 +59,7 @@ gitatlas/
 ├── decode-wasm/       # RepoState helpers for the browser
 ├── contracts/         # HubRegistry, HubVault, HubStars, HubRepo, …
 ├── delegates/         # hub-identity, hub-pages
-├── docs/              # deeper architecture notes
+├── docs/                # architecture notes + preview images
 ├── freenet-linguist/  # language bar
 ├── freenet-licensee/  # LICENSE detection
 ├── scripts/           # publish / owner-tool helpers
