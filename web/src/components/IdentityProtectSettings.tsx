@@ -625,7 +625,14 @@ export function IdentityProtectSettings({
                 return (
                   <li key={t.id} className="settings-protect-scope-row">
                     <div className="settings-protect-scope-copy">
+                      {/* OLD CODE - KEEP UNTIL CONFIRMED WORKING
                       <strong>{t.label}</strong>
+                      <span className="muted tiny block">{t.help}</span>
+                      */}
+                      {/* NEW CODE - TESTING: title + help stacked (not inline) */}
+                      <strong className="settings-protect-scope-title">
+                        {t.label}
+                      </strong>
                       <span className="muted tiny block">{t.help}</span>
                       {!t.key ? (
                         <span className="muted tiny block">

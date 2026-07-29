@@ -2598,10 +2598,9 @@ select:focus {
 }
 
 .settings-protect-scope-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  display: block;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .settings-protect-scope-row .gh-repo-rename-btn {
@@ -2613,6 +2612,21 @@ select:focus {
 .settings-protect-scope-copy {
   min-width: 0;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.settings-protect-scope-copy > strong {
+  display: block;
+  line-height: 1.3;
+}
+
+.settings-protect-scope-copy .block {
+  display: block;
+  margin-top: 0;
+  line-height: 1.35;
 }
 
 .local-protect-panel-head {
