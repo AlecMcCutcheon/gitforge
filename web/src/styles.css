@@ -4736,16 +4736,10 @@ overflowed gh-blob-panel and forced a scrollbar.
   max-width: 100%;
   line-height: 0;
   border-radius: 6px;
-  outline-offset: 2px;
-}
-
-.md-preview .md-repo-img-link:hover .md-repo-img {
-  outline: 2px solid var(--fgColor-link, #2f81f7);
-  outline-offset: 2px;
 }
 
 .md-preview .md-repo-img-link .md-repo-img {
-  cursor: zoom-in;
+  cursor: pointer;
 }
 
 .commit-list {
@@ -4914,6 +4908,11 @@ Also tried calc(100vh - 56|68px) — still overflowed: site-header,
   overflow: hidden;
   padding: 12px 24px 12px;
   box-sizing: border-box;
+}
+
+.repo-page-body--file .gh-blob-panel > .gh-blob-breadcrumbs,
+.repo-page-body--file .gh-blob-panel > .breadcrumbs {
+  flex: 0 0 auto;
 }
 
 .repo-page-body--file .gh-file-create,

@@ -34,6 +34,7 @@ and the Hub contracts that make that usable day to day.
 | **Repo health** | Pack / Hub reachability + rescue paths |
 | **Inbox** | Profile inbox for system / invite-style messages |
 | **API keys** | Vault-scoped keys for CLI helpers (`gitatlas-vault`) |
+| **Repo CLI** | `gitatlas-repo` — about / register / unregister / rename / soft-delete via local delegate |
 | **Downloads** | Re-export identity / related downloads from Settings |
 
 ## Design notes

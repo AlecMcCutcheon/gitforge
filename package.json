@@ -2,7 +2,7 @@
   "name": "freenet-gitatlas",
   "private": true,
   "version": "0.1.0",
-  "description": "GitAtlas \u2014 browse and manage Freenet-hosted git repositories",
+  "description": "Git forge for Freenet — browse and publish freenet-git repos without a central server.",
   "workspaces": [
     "web",
     "freenet-linguist",
@@ -15,7 +15,8 @@
     "build:website": "bash scripts/sync-website-key.sh && npm run build:wasm && VITE_BROWSER_NATIVE=1 npm run build -w @freenet-hub/web",
     "publish:website": "npm run build:website && bash scripts/publish-website.sh",
     "build:owner": "bash scripts/build-hub-owner-tools.sh",
-    "gitatlas-vault": "npx tsx scripts/cli/gitatlas-vault.ts"
+    "gitatlas-vault": "npx tsx scripts/cli/gitatlas-vault.ts",
+    "gitatlas-repo": "npx tsx scripts/cli/gitatlas-repo.ts"
   },
   "license": "LGPL-3.0-only"
 }

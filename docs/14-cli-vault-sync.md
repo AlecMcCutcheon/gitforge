@@ -72,3 +72,21 @@ there was drift, the delegate still receives new keys; resolve under
 
 See [`10-hub-vault-auth.md`](10-hub-vault-auth.md) and
 [`scripts/cli/README.md`](../scripts/cli/README.md).
+
+## Repo owner CLI (`gitatlas-repo`)
+
+Vault API keys cannot dual-sign HubRegistry / RepoState. For **about**
+(description + website + topics), **register**, **unregister**, **rename**, and
+**soft-delete**, use the identity bundle against the local Freenet node:
+
+```sh
+npm run gitatlas-repo -- about \
+  --bundle ~/path/to/git-identity.bundle \
+  --bundle-passphrase '…' \
+  --prefix <prefix> --label <label> \
+  --description '…' [--website '…'] [--topics a,b]
+```
+
+The tool ImportIdentity + ImportRepoKey into hub-identity, then runs the same
+owner-api paths as the SPA (including HubRepoMeta ensure on register/about).
+
