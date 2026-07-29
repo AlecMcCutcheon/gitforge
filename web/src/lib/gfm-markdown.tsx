@@ -9,7 +9,12 @@
  * Relative repo paths (e.g. `docs/images/foo.png`) can be resolved via tip
  * browse when callers pass `loadRepoBlob` — same idea as GitHub README assets.
  */
-import { useEffect, useState, type ImgHTMLAttributes } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ImgHTMLAttributes,
+} from "react";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -221,6 +226,7 @@ function MarkdownImg({
   title,
   markdownPath,
   loadRepoBlob,
+  className,
   ...rest
 }: ImgHTMLAttributes<HTMLImageElement> & {
   markdownPath?: string;
@@ -228,6 +234,10 @@ function MarkdownImg({
 }) {
   const [repoSrc, setRepoSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  // Stable loader ref — parent recreates loadRepoBlob each render; do not
+  // cancel in-flight tip fetches on identity churn.
+  const loadRepoBlobRef = useRef(loadRepoBlob);
+  loadRepoBlobRef.current = loadRepoBlob;
 
   const srcStr = typeof src === "string" ? src : "";
   const shields = srcStr ? shieldsUrlToDataUri(srcStr) : null;
@@ -237,7 +247,8 @@ function MarkdownImg({
       : null;
 
   useEffect(() => {
-    if (!repoPath || !loadRepoBlob) {
+    const load = loadRepoBlobRef.current;
+    if (!repoPath || !load) {
       setRepoSrc(null);
       setFailed(false);
       return;
@@ -245,7 +256,7 @@ function MarkdownImg({
     let cancelled = false;
     setRepoSrc(null);
     setFailed(false);
-    void loadRepoBlob(repoPath)
+    void load(repoPath)
       .then((blob) => {
         if (cancelled) return;
         if (!blob?.contentBase64) {
@@ -261,14 +272,17 @@ function MarkdownImg({
     return () => {
       cancelled = true;
     };
-  }, [repoPath, loadRepoBlob]);
+  }, [repoPath]);
 
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // const local = typeof src === "string" ? shieldsUrlToDataUri(src) : null;
   // return <img src={local ?? src} alt={alt} title={title} {...rest} />;
   // NEW CODE - TESTING: shields locally + relative tip-pack assets as data URIs
+  // (do not spread rest.src — react-markdown passes the relative path)
   if (shields) {
-    return <img src={shields} alt={alt} title={title} {...rest} />;
+    return (
+      <img src={shields} alt={alt} title={title} className={className} {...rest} />
+    );
   }
   if (repoPath) {
     if (repoSrc) {
@@ -277,7 +291,7 @@ function MarkdownImg({
           src={repoSrc}
           alt={alt}
           title={title ?? repoPath}
-          className={["md-repo-img", rest.className].filter(Boolean).join(" ")}
+          className={["md-repo-img", className].filter(Boolean).join(" ")}
           {...rest}
         />
       );
@@ -295,7 +309,9 @@ function MarkdownImg({
       </span>
     );
   }
-  return <img src={src} alt={alt} title={title} {...rest} />;
+  return (
+    <img src={src} alt={alt} title={title} className={className} {...rest} />
+  );
 }
 
 export function createGfmMarkdownComponents(opts?: {
