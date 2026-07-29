@@ -337,6 +337,9 @@ export function CommunityFilesPanel({
           headerTabs={headerTabs}
           blobHref={repoBlobHref(prefix, label, gitRef, activePath, ownerOpts)}
           canEdit={canEdit}
+          prefix={prefix}
+          label={label}
+          branch={gitRef}
         />
       ) : null}
     </div>

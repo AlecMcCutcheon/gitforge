@@ -4539,6 +4539,12 @@ select:focus {
   height: auto;
 }
 
+.md-preview .md-repo-img-loading,
+.md-preview .md-repo-img-missing {
+  display: inline-block;
+  margin: 0.25rem 0;
+}
+
 /* Legacy GitHub README HTML: <div align="center"> … badges … */
 .md-preview [align="center"] {
   text-align: center;

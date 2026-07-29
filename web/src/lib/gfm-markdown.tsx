@@ -5,8 +5,11 @@
  *
  * Shields.io images are rewritten to local badge-maker SVGs (data: URIs)
  * so README badges work under Freenet sandbox CSP.
+ *
+ * Relative repo paths (e.g. `docs/images/foo.png`) can be resolved via tip
+ * browse when callers pass `loadRepoBlob` — same idea as GitHub README assets.
  */
-import type { ImgHTMLAttributes } from "react";
+import { useEffect, useState, type ImgHTMLAttributes } from "react";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -157,7 +160,8 @@ const githubMarkdownSchema: Schema = {
     source: ["src", "type", "media"],
     track: ["src", "kind", "srclang", "label", "default"],
   },
-  // Keep protocols safe (no javascript:). data: needed for local shields SVGs.
+  // Keep protocols safe (no javascript:). data: needed for local shields SVGs
+  // and tip-resolved repo images.
   protocols: {
     ...defaultSchema.protocols,
     href: [...(defaultSchema.protocols?.href ?? []), "mailto"],
@@ -165,23 +169,154 @@ const githubMarkdownSchema: Schema = {
   },
 };
 
-/** Replace shields.io <img src> with a locally rendered badge-maker data URI. */
+export interface RepoMarkdownBlob {
+  mediaType: string;
+  contentBase64: string;
+}
+
+export type LoadRepoMarkdownBlob = (
+  repoPath: string,
+) => Promise<RepoMarkdownBlob | null>;
+
+/** True for http(s), data:, blob:, protocol-relative, and mailto-style URLs. */
+export function isExternalMarkdownSrc(src: string): boolean {
+  const s = src.trim();
+  if (!s) return true;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(s)) return true;
+  if (s.startsWith("//")) return true;
+  return false;
+}
+
+/**
+ * Resolve a markdown image/link path relative to the markdown file’s directory
+ * (GitHub README behavior). Leading `/` is treated as repo-root absolute.
+ */
+export function resolveMarkdownAssetPath(
+  markdownPath: string,
+  src: string,
+): string | null {
+  const raw = src.trim();
+  if (!raw || isExternalMarkdownSrc(raw)) return null;
+  const cleaned = raw.replace(/\\/g, "/").replace(/^\.\//, "");
+  if (cleaned.startsWith("/")) {
+    return cleaned.replace(/^\/+/, "").replace(/\/+/g, "/");
+  }
+  const mdDir = markdownPath.replace(/\\/g, "/").replace(/\/[^/]*$/, "");
+  const parts = (mdDir ? `${mdDir}/${cleaned}` : cleaned).split("/");
+  const out: string[] = [];
+  for (const part of parts) {
+    if (!part || part === ".") continue;
+    if (part === "..") {
+      if (out.length > 0) out.pop();
+      continue;
+    }
+    out.push(part);
+  }
+  return out.join("/");
+}
+
 function MarkdownImg({
   src,
   alt,
   title,
+  markdownPath,
+  loadRepoBlob,
   ...rest
-}: ImgHTMLAttributes<HTMLImageElement>) {
+}: ImgHTMLAttributes<HTMLImageElement> & {
+  markdownPath?: string;
+  loadRepoBlob?: LoadRepoMarkdownBlob;
+}) {
+  const [repoSrc, setRepoSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  const srcStr = typeof src === "string" ? src : "";
+  const shields = srcStr ? shieldsUrlToDataUri(srcStr) : null;
+  const repoPath =
+    !shields && markdownPath && loadRepoBlob && srcStr
+      ? resolveMarkdownAssetPath(markdownPath, srcStr)
+      : null;
+
+  useEffect(() => {
+    if (!repoPath || !loadRepoBlob) {
+      setRepoSrc(null);
+      setFailed(false);
+      return;
+    }
+    let cancelled = false;
+    setRepoSrc(null);
+    setFailed(false);
+    void loadRepoBlob(repoPath)
+      .then((blob) => {
+        if (cancelled) return;
+        if (!blob?.contentBase64) {
+          setFailed(true);
+          return;
+        }
+        const type = blob.mediaType || "application/octet-stream";
+        setRepoSrc(`data:${type};base64,${blob.contentBase64}`);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [repoPath, loadRepoBlob]);
+
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-  // return <img src={src} alt={alt} title={title} {...rest} />;
-  // NEW CODE - TESTING: Freenet CSP blocks clearnet images — render shields locally
-  const local = typeof src === "string" ? shieldsUrlToDataUri(src) : null;
-  return <img src={local ?? src} alt={alt} title={title} {...rest} />;
+  // const local = typeof src === "string" ? shieldsUrlToDataUri(src) : null;
+  // return <img src={local ?? src} alt={alt} title={title} {...rest} />;
+  // NEW CODE - TESTING: shields locally + relative tip-pack assets as data URIs
+  if (shields) {
+    return <img src={shields} alt={alt} title={title} {...rest} />;
+  }
+  if (repoPath) {
+    if (repoSrc) {
+      return (
+        <img
+          src={repoSrc}
+          alt={alt}
+          title={title ?? repoPath}
+          className={["md-repo-img", rest.className].filter(Boolean).join(" ")}
+          {...rest}
+        />
+      );
+    }
+    if (failed) {
+      return (
+        <span className="md-repo-img-missing muted tiny" title={repoPath}>
+          {alt || repoPath}
+        </span>
+      );
+    }
+    return (
+      <span className="md-repo-img-loading muted tiny" aria-busy="true">
+        Loading image…
+      </span>
+    );
+  }
+  return <img src={src} alt={alt} title={title} {...rest} />;
 }
 
-export const GFM_MARKDOWN_COMPONENTS: Components = {
-  img: MarkdownImg,
-};
+export function createGfmMarkdownComponents(opts?: {
+  markdownPath?: string;
+  loadRepoBlob?: LoadRepoMarkdownBlob;
+}): Components {
+  const markdownPath = opts?.markdownPath;
+  const loadRepoBlob = opts?.loadRepoBlob;
+  return {
+    img: (props) => (
+      <MarkdownImg
+        {...props}
+        markdownPath={markdownPath}
+        loadRepoBlob={loadRepoBlob}
+      />
+    ),
+  };
+}
+
+export const GFM_MARKDOWN_COMPONENTS: Components =
+  createGfmMarkdownComponents();
 
 /** Props spread onto every `<ReactMarkdown>` for GitHub-like GFM + safe HTML. */
 export const GFM_MARKDOWN_PROPS: Pick<
@@ -195,3 +330,17 @@ export const GFM_MARKDOWN_PROPS: Pick<
   rehypePlugins: [rehypeRaw, [rehypeSanitize, githubMarkdownSchema]],
   components: GFM_MARKDOWN_COMPONENTS,
 };
+
+/** Same as {@link GFM_MARKDOWN_PROPS} with tip-resolved relative images. */
+export function createGfmMarkdownProps(opts?: {
+  markdownPath?: string;
+  loadRepoBlob?: LoadRepoMarkdownBlob;
+}): Pick<
+  ReactMarkdownOptions,
+  "remarkPlugins" | "rehypePlugins" | "components"
+> {
+  return {
+    ...GFM_MARKDOWN_PROPS,
+    components: createGfmMarkdownComponents(opts),
+  };
+}

@@ -8,7 +8,7 @@ import ReactMarkdown from "react-markdown";
 // OLD CODE - KEEP UNTIL CONFIRMED WORKING
 // import remarkGfm from "remark-gfm";
 // import rehypeSanitize from "rehype-sanitize";
-import { GFM_MARKDOWN_PROPS } from "../lib/gfm-markdown";
+import { GFM_MARKDOWN_PROPS, createGfmMarkdownProps } from "../lib/gfm-markdown";
 import { api, type BlameLine } from "../api";
 import { freenetRawFileHref } from "../freenet/raw-entry";
 import { PageLoadingOverlay } from "./PageLoadingOverlay";
@@ -183,6 +183,10 @@ export function ReadmePanel({
    * Otherwise → eye → blob view (no ?edit=1).
    */
   canEdit = false,
+  /** Tip browse context — resolve relative README images from this tip. */
+  prefix,
+  label,
+  branch,
 }: {
   path: string;
   content: string;
@@ -191,6 +195,9 @@ export function ReadmePanel({
   title?: string;
   headerTabs?: ReactNode;
   canEdit?: boolean;
+  prefix?: string;
+  label?: string;
+  branch?: string;
 }) {
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // Always pencil → blob?edit=1
@@ -200,6 +207,25 @@ export function ReadmePanel({
       ? `${blobHref}&edit=1`
       : `${blobHref}?edit=1`
     : blobHref;
+
+  const mdProps = useMemo(() => {
+    if (!prefix || !label || !branch) return GFM_MARKDOWN_PROPS;
+    return createGfmMarkdownProps({
+      markdownPath: path,
+      loadRepoBlob: async (repoPath) => {
+        try {
+          const res = await api.blob(prefix, label, branch, repoPath);
+          if (!res.contentBase64) return null;
+          return {
+            mediaType: res.mediaType || "application/octet-stream",
+            contentBase64: res.contentBase64,
+          };
+        } catch {
+          return null;
+        }
+      },
+    });
+  }, [prefix, label, branch, path]);
 
   return (
     <article className={`md-panel ${className}`.trim()}>
@@ -221,7 +247,7 @@ export function ReadmePanel({
         </div>
       </header>
       <div className="md-preview">
-        <ReactMarkdown {...GFM_MARKDOWN_PROPS}>{content}</ReactMarkdown>
+        <ReactMarkdown {...mdProps}>{content}</ReactMarkdown>
       </div>
     </article>
   );
@@ -292,6 +318,26 @@ export function FileContentPanel({
     prefix,
     label,
     `blob/${encodeURIComponent(branch)}/${path.split("/").map(encodeURIComponent).join("/")}`,
+  );
+
+  const mdProps = useMemo(
+    () =>
+      createGfmMarkdownProps({
+        markdownPath: path,
+        loadRepoBlob: async (repoPath) => {
+          try {
+            const res = await api.blob(prefix, label, branch, repoPath);
+            if (!res.contentBase64) return null;
+            return {
+              mediaType: res.mediaType || "application/octet-stream",
+              contentBase64: res.contentBase64,
+            };
+          } catch {
+            return null;
+          }
+        },
+      }),
+    [prefix, label, branch, path],
   );
 
   const stats = useMemo(() => lineStats(content), [content]);
@@ -510,7 +556,7 @@ export function FileContentPanel({
           }
           preview={
             <div className="md-preview">
-              <ReactMarkdown {...GFM_MARKDOWN_PROPS}>{draft}</ReactMarkdown>
+              <ReactMarkdown {...mdProps}>{draft}</ReactMarkdown>
             </div>
           }
         />
@@ -720,9 +766,9 @@ export function FileContentPanel({
       {mode === "preview" && allowPreview ? (
         <div className="md-preview">
           <ReactMarkdown
-            {...GFM_MARKDOWN_PROPS}
+            {...mdProps}
             components={{
-              ...GFM_MARKDOWN_PROPS.components,
+              ...mdProps.components,
               h1: ({ children, ...props }) => (
                 <h1 id={slugFromChildren(children)} {...props}>
                   {children}
