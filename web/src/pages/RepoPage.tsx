@@ -60,6 +60,10 @@ import {
 } from "../lib/repo-path";
 import { parseWhoamiStdout } from "../lib/whoami";
 import { clearRepoTipCaches } from "../freenet/native-api";
+import {
+  cancelScheduledRepoTipCacheClear,
+  scheduleRepoTipCacheClear,
+} from "../freenet/tip-cache-lifecycle";
 import { serveRawFileInCurrentDocument } from "../freenet/serve-raw";
 import { freenetRawFileHref } from "../freenet/raw-entry";
 import { isBrowserNativeMode } from "../tip-browse";
@@ -349,10 +353,19 @@ export function RepoPage() {
 
   // Drop tip/pack memory when leaving this repo (or switching prefix) so the
   // next visit is a cold Freenet load and RAM does not accumulate packs.
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // useEffect(() => {
+  //   if (!prefix) return;
+  //   return () => { clearRepoTipCaches(prefix); };
+  // }, [prefix]);
+  // NEW CODE - TESTING: defer clear so React StrictMode remount does not abort
+  // soft-fill mid-flight (README relative images were failing against the
+  // aborted tip while a later /blob view used a fresh full tip).
   useEffect(() => {
     if (!prefix) return;
+    cancelScheduledRepoTipCacheClear(prefix);
     return () => {
-      clearRepoTipCaches(prefix);
+      scheduleRepoTipCacheClear(prefix, clearRepoTipCaches);
     };
   }, [prefix]);
 
@@ -1714,11 +1727,32 @@ function TreeView({
         setTipPackSize(tree.tipPackSize ?? null);
       })
       .catch((err: unknown) => {
-        if (!cancelled) {
-          const described = describeBrowseError(err);
-          setError(described.message);
-          setErrorKind(described.kind);
+        if (cancelled) return;
+        const described = describeBrowseError(err);
+        // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+        // setError(described.message); setErrorKind(described.kind);
+        // NEW CODE - TESTING: GitHub redirects /tree/…/file → /blob/…/file
+        // (tree walk treats the filename as a directory → "path not found").
+        if (treePath && /path not found/i.test(described.message)) {
+          void api
+            .blob(prefix, label, ref, treePath)
+            .then(() => {
+              if (cancelled) return;
+              navigate(
+                repoBlobHref(prefix, label, ref, treePath, ownerOpts),
+                { replace: true },
+              );
+            })
+            .catch(() => {
+              if (!cancelled) {
+                setError(described.message);
+                setErrorKind(described.kind);
+              }
+            });
+          return;
         }
+        setError(described.message);
+        setErrorKind(described.kind);
       })
       .finally(() => {
         if (!cancelled) setTreeBusy(false);

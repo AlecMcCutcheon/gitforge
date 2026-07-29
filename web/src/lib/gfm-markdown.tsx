@@ -256,19 +256,36 @@ function MarkdownImg({
     let cancelled = false;
     setRepoSrc(null);
     setFailed(false);
-    void load(repoPath)
-      .then((blob) => {
-        if (cancelled) return;
-        if (!blob?.contentBase64) {
+
+    const attempt = (triesLeft: number): void => {
+      void load(repoPath)
+        .then((blob) => {
+          if (cancelled) return;
+          if (!blob?.contentBase64) {
+            if (triesLeft > 0) {
+              window.setTimeout(() => attempt(triesLeft - 1), 400);
+              return;
+            }
+            setFailed(true);
+            return;
+          }
+          const type = blob.mediaType || "application/octet-stream";
+          setRepoSrc(`data:${type};base64,${blob.contentBase64}`);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          if (triesLeft > 0) {
+            window.setTimeout(() => attempt(triesLeft - 1), 400);
+            return;
+          }
           setFailed(true);
-          return;
-        }
-        const type = blob.mediaType || "application/octet-stream";
-        setRepoSrc(`data:${type};base64,${blob.contentBase64}`);
-      })
-      .catch(() => {
-        if (!cancelled) setFailed(true);
-      });
+        });
+    };
+    // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+    // void load(repoPath).then(...).catch(...) — single shot
+    // NEW CODE - TESTING: retry while tip soft-fill / StrictMode tip reset settles
+    attempt(3);
+
     return () => {
       cancelled = true;
     };

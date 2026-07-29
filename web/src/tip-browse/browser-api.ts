@@ -727,9 +727,28 @@ export async function browserListTree(
 }> {
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // const entries = await listTreePath(tip.objects, tip.commit, path);
+  // NEW CODE - TESTING: wait for soft-fill — nested trees often live in parent tip packs
+  async function listWithSoftFill(): Promise<
+    Awaited<ReturnType<typeof listTreePath>>
+  > {
+    try {
+      return await listTreePath(tip.objects, tip.commit, path);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (
+        tip.softFill &&
+        /missing (blob|tree)|path not found|file not found|not in tip pack/i.test(
+          msg,
+        )
+      ) {
+        await tip.softFill;
+        return await listTreePath(tip.objects, tip.commit, path);
+      }
+      throw err;
+    }
+  }
 
-  // NEW CODE - TESTING
-  const base = await listTreePath(tip.objects, tip.commit, path);
+  const base = await listWithSoftFill();
   const entries = enrichTreeWithLastCommits(
     tip.objects,
     tip.commit,
@@ -791,28 +810,14 @@ export async function browserShowBlob(
   // const buf = await readBlobPath(tip.objects, tip.commit, filePath);
   // …then only retried softFill on /missing blob/i
   //
-  // NEW CODE - TESTING: tip packs are incremental — README may peel from HEAD
-  // while docs/ trees + image blobs still live in soft-filled parent packs.
-  // "missing tree" (and path/file not found while trees are absent) must wait
-  // for softFill the same way "missing blob" does, or markdown preview shows
-  // only alt text for relative images like docs/images/*.png.
-  let buf: Uint8Array;
-  try {
-    buf = await readBlobPath(tip.objects, tip.commit, filePath);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (
-      tip.softFill &&
-      /missing (blob|tree)|path not found|file not found|not in tip pack/i.test(
-        msg,
-      )
-    ) {
-      await tip.softFill;
-      buf = await readBlobPath(tip.objects, tip.commit, filePath);
-    } else {
-      throw err;
-    }
+  // NEW CODE - TESTING: always finish soft-fill before reading. Tip packs are
+  // incremental — README may peel from HEAD while docs/ trees + image blobs
+  // still live in parent packs. Retry-on-miss alone raced StrictMode tip-cache
+  // clears (softFill resolved aborted → alt text; later /blob used a fresh tip).
+  if (tip.softFill) {
+    await tip.softFill;
   }
+  const buf = await readBlobPath(tip.objects, tip.commit, filePath);
   const lower = filePath.toLowerCase();
   const imageExt: Record<string, string> = {
     ".png": "image/png",
