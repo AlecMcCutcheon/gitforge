@@ -222,7 +222,14 @@ export function resolveMarkdownAssetPath(
   if (cleaned.startsWith("/")) {
     return cleaned.replace(/^\/+/, "").replace(/\/+/g, "/");
   }
-  const mdDir = markdownPath.replace(/\\/g, "/").replace(/\/[^/]*$/, "");
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // const mdDir = markdownPath.replace(/\\/g, "/").replace(/\/[^/]*$/, "");
+  // — root files like README.md have no slash, so mdDir stayed "README.md"
+  // and images resolved to README.md/docs/images/… → path not found: README.md
+  // NEW CODE - TESTING: no slash ⇒ repo-root (empty dir), same as GitHub
+  const normalizedMd = markdownPath.replace(/\\/g, "/");
+  const slash = normalizedMd.lastIndexOf("/");
+  const mdDir = slash >= 0 ? normalizedMd.slice(0, slash) : "";
   const parts = (mdDir ? `${mdDir}/${cleaned}` : cleaned).split("/");
   const out: string[] = [];
   for (const part of parts) {
