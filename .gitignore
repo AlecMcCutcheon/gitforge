@@ -1,0 +1,61 @@
+# Dependencies / install
+node_modules/
+
+# Build outputs
+dist/
+**/dist/
+build/
+target/
+browse-tool/target/
+decode-wasm/target/
+web/dist/
+*.tsbuildinfo
+
+# Vite / caches
+.cache/
+.vite/
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Secrets & local env (never commit)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+**/secrets/
+credentials.json
+*_keypair*
+*_secret*
+
+# Built Freenet WASM served by the SPA (regenerate via build:owner / build:wasm)
+web/public/*.wasm
+web/public/*.pkg
+
+# Temporary upstream clones for catalog regen
+freenet-linguist/_ref/
+freenet-licensee/_ref/
+
+# Local tip / pack caches if ever dropped in-tree
+.local/
+*.pack
+*.idx
+
+# Coverage / test debris
+coverage/
+.nyc_output/
+
+# Retired local API (keep sources; skip its install/build trees)
+attic/**/node_modules/
+attic/**/dist/

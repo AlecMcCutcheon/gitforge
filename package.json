@@ -1,0 +1,21 @@
+{
+  "name": "freenet-gitatlas",
+  "private": true,
+  "version": "0.1.0",
+  "description": "GitAtlas \u2014 browse and manage Freenet-hosted git repositories",
+  "workspaces": [
+    "web",
+    "freenet-linguist",
+    "freenet-licensee"
+  ],
+  "scripts": {
+    "build:tip": "cargo build --release --manifest-path browse-tool/Cargo.toml",
+    "build:wasm": "npm run build:wasm -w @freenet-hub/web && npm run gen:hashes -w @freenet-hub/web",
+    "build:web": "npm run build -w @freenet-hub/web",
+    "build:website": "bash scripts/sync-website-key.sh && npm run build:wasm && VITE_BROWSER_NATIVE=1 npm run build -w @freenet-hub/web",
+    "publish:website": "npm run build:website && bash scripts/publish-website.sh",
+    "build:owner": "bash scripts/build-hub-owner-tools.sh",
+    "gitatlas-vault": "npx tsx scripts/cli/gitatlas-vault.ts"
+  },
+  "license": "LGPL-3.0-only"
+}

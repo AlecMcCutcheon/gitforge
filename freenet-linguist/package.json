@@ -1,0 +1,14 @@
+{
+  "name": "@freenet-hub/linguist",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Freenet/GitAtlas language detection — TypeScript port of Linguist strategies + go-enry classifier.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "gen:catalog": "python3 scripts/gen-catalog.py",
+    "gen:classifier": "python3 scripts/gen-classifier.py"
+  }
+}

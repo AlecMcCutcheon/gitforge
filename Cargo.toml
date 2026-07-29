@@ -1,0 +1,38 @@
+[workspace]
+resolver = "2"
+members = [
+    "contracts/hub-registry",
+    "contracts/hub-vault",
+    "contracts/hub-stars",
+    "contracts/hub-profile",
+    "contracts/hub-repo",
+    "delegates/hub-identity",
+    "delegates/hub-pages",
+]
+# Standalone crates (own target dirs / wasm-bindgen); not part of this workspace.
+exclude = [
+    "decode-wasm",
+    "browse-tool",
+]
+
+[profile.release]
+lto = true
+opt-level = "s"
+debug = false
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.release.package."*"]
+opt-level = "z"
+
+[workspace.dependencies]
+freenet-stdlib = { version = "=0.6.1", default-features = false, features = ["contract"] }
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.149"
+serde_bytes = "=0.11.17"
+bs58 = "=0.5.1"
+hex = "=0.4.3"
+bincode = "=1.3.3"
+ed25519-compact = { version = "=2.1.1", default-features = false, features = ["std"] }
+ed25519-dalek = { version = "=2.1.1", default-features = false, features = ["alloc", "zeroize"] }

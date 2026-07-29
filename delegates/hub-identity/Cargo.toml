@@ -1,0 +1,25 @@
+[package]
+name = "freenet-hub-identity"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+
+[dependencies]
+freenet-stdlib = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+bs58 = { workspace = true }
+hex = { workspace = true }
+bincode = { workspace = true }
+ed25519-dalek = { workspace = true }
+freenet-git-types = { path = "../../../freenet-git/crates/types", features = ["signing"] }
+# WASM: route getrandom through Freenet kernel RNG (see lib.rs).
+getrandom = { version = "=0.2.15", features = ["custom"] }
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+default = ["freenet-main-delegate"]
+freenet-main-delegate = []

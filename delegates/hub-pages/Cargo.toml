@@ -1,0 +1,24 @@
+[package]
+name = "freenet-hub-pages"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+
+[dependencies]
+freenet-stdlib = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+hex = { workspace = true }
+ed25519-dalek = { version = "=2.1.1", default-features = false, features = ["alloc", "zeroize", "serde"] }
+ciborium = "0.2.2"
+lzma-rs = "0.3.0"
+# WASM: route getrandom through Freenet kernel RNG.
+getrandom = { version = "=0.2.15", features = ["custom"] }
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+default = ["freenet-main-delegate"]
+freenet-main-delegate = []

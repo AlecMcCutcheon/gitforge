@@ -1,0 +1,13 @@
+{
+  "name": "@freenet-hub/licensee",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Freenet/GitAtlas license detection (licensee) + choosealicense generate.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "gen:catalog": "python3 scripts/gen-catalog.py"
+  }
+}
