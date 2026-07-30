@@ -2,7 +2,7 @@
 
 Lessons from upstream [freenet-git](https://github.com/freenet/freenet-git) transport work
 ([releases v0.1.11–v0.1.12](https://github.com/freenet/freenet-git/releases)),
-mapped onto GitAtlas website-mode Puts/Gets. Large-pack design background:
+mapped onto GitForge website-mode Puts/Gets. Large-pack design background:
 [freenet-git `docs/0001-large-repos.md`](../../freenet-git/docs/0001-large-repos.md).
 
 ## Hub vs CLI transport
@@ -16,7 +16,7 @@ mapped onto GitAtlas website-mode Puts/Gets. Large-pack design background:
 | Pack/repo WASM | Borrowed / Arc-shared across chunk Puts | In-memory path cache ([`wasm-cache.ts`](../web/src/freenet/wasm-cache.ts)) |
 | Rescue | `freenet-git rescue` (+ optional `--from` clone) | SPA Pack health sidebar: probe + re-PUT from cache/network ([`pack-health.ts`](../web/src/freenet/pack-health.ts)); CLI `--from` still for cold-everywhere |
 
-Hub **identity / registry / profile / vault / stars / HubRepoMeta** contracts carry
+Hub **identity / registry / profile / vault / stars / ForgeRepoMeta** contracts carry
 small JSON. ChunkedPack and multi-WS pools do **not** apply to those paths.
 
 ```mermaid

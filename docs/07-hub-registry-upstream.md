@@ -1,15 +1,15 @@
 # Upstream adapter notes (freenet-git Phase 4+)
 
-When freenet-git ships network discovery and release artifact contracts, keep FreenetHub routes stable and swap data sources.
+When freenet-git ships network discovery and release artifact contracts, keep GitForge routes stable and swap data sources.
 
 ## Discovery
 
 | Today | Upstream |
 |-------|----------|
-| Seeds + bridge HubRegistry | HubRegistry WASM (`contracts/hub-registry`) + freenet-git discovery later |
-| Register via whoami attestation | Dual-sig register via hub-identity delegate (website) / bridge local-bundle |
+| Seeds + bridge ForgeRegistry | ForgeRegistry WASM (`contracts/forge-registry`) + freenet-git discovery later |
+| Register via whoami attestation | Dual-sig register via forge-identity delegate (website) / bridge local-bundle |
 
-Adapter hook: `web/src/registry/client.ts` — website mode uses contract WS; bridge keeps HTTP. Shared `HubRegistration` fields (+ `repo_owner_vk` for dual-sig).
+Adapter hook: `web/src/registry/client.ts` — website mode uses contract WS; bridge keeps HTTP. Shared `ForgeRegistration` fields (+ `repo_owner_vk` for dual-sig).
 
 ## Releases
 

@@ -1,13 +1,13 @@
 [package]
-name = "freenet-hub-tip"
+name = "freenet-forge-tip"
 version = "0.1.0"
 edition = "2021"
 license = "LGPL-3.0-only"
 publish = false
-description = "Tip-only Freenet pack fetch for FreenetHub browse (skips legacy bundles)"
+description = "Tip-only Freenet pack fetch for GitForge browse (skips legacy bundles)"
 
 [[bin]]
-name = "freenet-hub-tip"
+name = "freenet-forge-tip"
 path = "src/main.rs"
 
 [dependencies]

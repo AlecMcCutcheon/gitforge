@@ -6,8 +6,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ContractKey } from "@freenetorg/freenet-stdlib";
 import { getSessionVaultId } from "../freenet/auth-api";
-import { hubProfileKeyForFingerprint } from "../freenet/hub-profile";
-import { hubVaultKeyForId } from "../freenet/hub-vault";
+import { forgeProfileKeyForFingerprint } from "../freenet/forge-profile";
+import { forgeVaultKeyForId } from "../freenet/forge-vault";
 import {
   fetchNodeFeatures,
   fetchProtectStatus,
@@ -26,6 +26,7 @@ import {
   identityScopePresentation,
   layerAPresentation,
 } from "../freenet/protect-presentation";
+import { brand } from "../lib/brand";
 import {
   compareProtectIntent,
   forgetProtectScope,
@@ -44,7 +45,7 @@ import {
   type ProtectVaultIntent,
   type RememberedProtectScope,
 } from "../freenet/protect-prefs";
-import { GITATLAS_WEBSITE_CONTRACT_KEY } from "../freenet/website-constants";
+import { FORGE_WEBSITE_CONTRACT_KEY } from "../freenet/website-constants";
 
 function keyId(key: ContractKey | null): string | null {
   if (!key) return null;
@@ -91,9 +92,9 @@ function buildTargets(
   vaultId: string | null,
 ): IdentityProtectTarget[] {
   const profileKey = fingerprint
-    ? keyId(hubProfileKeyForFingerprint(fingerprint))
+    ? keyId(forgeProfileKeyForFingerprint(fingerprint))
     : null;
-  const vaultKey = vaultId ? keyId(hubVaultKeyForId(vaultId)) : null;
+  const vaultKey = vaultId ? keyId(forgeVaultKeyForId(vaultId)) : null;
   return [
     {
       id: "profile",
@@ -111,9 +112,9 @@ function buildTargets(
     },
     {
       id: "website",
-      label: "GitAtlas site files",
+      label: `${brand.displayName} site files`,
       help: "Pin this site’s website contract bytes locally.",
-      key: GITATLAS_WEBSITE_CONTRACT_KEY,
+      key: FORGE_WEBSITE_CONTRACT_KEY,
       grantId: identityGrantId("website"),
     },
   ];
@@ -259,7 +260,7 @@ export function IdentityProtectSettings({
         return;
       }
       setProtectAppGrantedIntent(true);
-      setMsg("GitAtlas may request Pin scopes on this node.");
+      setMsg(`${brand.displayName} may request Pin scopes on this node.`);
       await refresh();
     } finally {
       setBusyId(null);
@@ -438,7 +439,7 @@ export function IdentityProtectSettings({
       <header className="settings-header">
         <h1>Pin</h1>
         <p className="muted">
-          Local only. Authorize GitAtlas once in the Freenet shell, then grant
+          Local only. Authorize {brand.displayName} once in the Freenet shell, then grant
           each area you want kept warm on this node. Intent is sealed in your
           vault; live pins require website permission on this node.
         </p>
@@ -536,7 +537,7 @@ export function IdentityProtectSettings({
       <section className="settings-protect-card">
         <h2 className="settings-subheader">Website permission</h2>
         <p className="muted tiny">
-          Lets GitAtlas ask for Pin scopes. Does not pin any contracts by
+          Lets {brand.displayName} ask for Pin scopes. Does not pin any contracts by
           itself. Revoking clears scopes on this node; vault keeps the list for
           Restore.
         </p>

@@ -18,8 +18,8 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
     "paths": {
-      "@freenet-hub/linguist": ["../freenet-linguist/src/index.ts"],
-      "@freenet-hub/licensee": ["../freenet-licensee/src/index.ts"]
+      "@gitforge/linguist": ["../freenet-linguist/src/index.ts"],
+      "@gitforge/licensee": ["../freenet-licensee/src/index.ts"]
     }
   },
   "include": ["src", "../freenet-linguist/src", "../freenet-licensee/src"]

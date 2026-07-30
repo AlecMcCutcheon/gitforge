@@ -165,7 +165,7 @@ async function objectsForPack(bundleId: string, bytes: Uint8Array) {
     const t0 = performance.now();
     objs = await unpackPack(bytes);
     console.info(
-      `[freenet-hub] unpackPack ${bundleId.slice(0, 12)}… ${(performance.now() - t0).toFixed(1)}ms (${bytes.length} bytes, ${objs.size} objects)`,
+      `[freenet-forge] unpackPack ${bundleId.slice(0, 12)}… ${(performance.now() - t0).toFixed(1)}ms (${bytes.length} bytes, ${objs.size} objects)`,
     );
     objectCache.set(bundleId, objs);
   }
@@ -356,7 +356,7 @@ async function loadBundlePackBytes(
       return bytes;
     } catch (err) {
       console.warn(
-        "[freenet-hub] cached tip pack failed to decode — refetching",
+        "[freenet-forge] cached tip pack failed to decode — refetching",
         bundle.bundle_id,
         err,
       );
@@ -438,7 +438,7 @@ export async function ensureBrowserTip(options: {
   const stillValid = () => tipCacheEpochValid(options.prefix, epoch);
   if (!(await wasmAvailable()) && options.repoStateBytes) {
     throw new Error(
-      "freenet-hub-decode wasm not built. Run: npm run build:wasm -w @freenet-hub/web",
+      "freenet-forge-decode wasm not built. Run: npm run build:wasm -w @gitforge/web",
     );
   }
 
@@ -537,7 +537,7 @@ export async function ensureBrowserTip(options: {
       const objs = await objectsForPack(bundle.bundle_id, bytes);
       const decodeMs = performance.now() - t1;
       console.info(
-        `[freenet-hub] tip pack ${bundle.bundle_id.slice(0, 12)}… fetch ${fetchMs.toFixed(0)}ms decode ${decodeMs.toFixed(0)}ms (${bytes.length} bytes)`,
+        `[freenet-forge] tip pack ${bundle.bundle_id.slice(0, 12)}… fetch ${fetchMs.toFixed(0)}ms decode ${decodeMs.toFixed(0)}ms (${bytes.length} bytes)`,
       );
       mergeObjectMaps(merged, objs);
       loadedBundleIds.add(bundle.bundle_id);
@@ -551,7 +551,7 @@ export async function ensureBrowserTip(options: {
       }
       if (required) throw err;
       console.warn(
-        `[freenet-hub] soft-fail tipped pack ${bundle.bundle_id.slice(0, 12)}…`,
+        `[freenet-forge] soft-fail tipped pack ${bundle.bundle_id.slice(0, 12)}…`,
         err,
       );
     }
@@ -692,7 +692,7 @@ export async function ensureBrowserTip(options: {
     );
     if (filled > 0 || remaining.length > capped.length) {
       console.info(
-        `[freenet-hub] soft-fill tipped packs done (+${filled}/${remaining.length}, ${packCount} packs, ${totalPackBytes} bytes` +
+        `[freenet-forge] soft-fill tipped packs done (+${filled}/${remaining.length}, ${packCount} packs, ${totalPackBytes} bytes` +
           (remaining.length > capped.length ||
           filledBytes >= MAX_SOFT_FILL_BYTES
             ? `, capped at ${MAX_SOFT_FILL_PACKS} packs / ${MAX_SOFT_FILL_BYTES} bytes`

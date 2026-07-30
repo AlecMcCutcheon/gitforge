@@ -1,5 +1,5 @@
 {
-  "name": "@freenet-hub/server",
+  "name": "@gitforge/server",
   "private": true,
   "version": "0.1.0",
   "type": "module",

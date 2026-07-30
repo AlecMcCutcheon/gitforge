@@ -76,7 +76,7 @@ function StarsIcon() {
   );
 }
 
-/** Second row under GitAtlas — while viewing a person profile. */
+/** Second row under GitForge — while viewing a person profile. */
 export function PeopleSiteNav({ route }: { route: PeopleRouteInfo }) {
   const { slug, tab } = route;
   return (

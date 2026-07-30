@@ -31,12 +31,18 @@ import {
   updatePublicProfile,
   type VaultDelegateSyncStatus,
 } from "../freenet/auth-api";
-import type { VaultApiKeyWrap } from "../freenet/vault-crypto";
+import {
+  ENVELOPE_PAGES,
+  ENVELOPE_REPOS,
+  ENVELOPE_SETTINGS,
+  type VaultApiKeyScope,
+  type VaultApiKeyWrap,
+} from "../freenet/vault-crypto";
 import {
   defaultContactFromFingerprint,
   fingerprintWords,
 } from "../freenet/fingerprint-words";
-import type { HubIdentityInfo } from "../freenet/owner-api";
+import type { ForgeIdentityInfo } from "../freenet/owner-api";
 import { ProfileAvatar } from "../components/ProfileAvatar";
 import { BrandLogo } from "../components/BrandLogo";
 import { FlashNotice } from "../components/FlashNotice";
@@ -53,6 +59,7 @@ import {
   normalizeProfileAvatar,
   resizeImageToDataUrl,
 } from "../lib/avatar-image";
+import { brand } from "../lib/brand";
 import { isBrowserNativeMode } from "../tip-browse";
 import { useDocumentTitle } from "../lib/document-title";
 import {
@@ -89,7 +96,7 @@ function AuthShell({ children }: { children: ReactNode }) {
       <div className="auth-brand">
         <Link to="/" className="auth-brand-mark">
           <BrandLogo size={40} className="brand-logo" />
-          GitAtlas
+          {brand.displayName}
         </Link>
       </div>
       {children}
@@ -108,7 +115,7 @@ export function AccountPage() {
   });
   const [settingsSection, setSettingsSection] =
     useState<SettingsSection>("profile");
-  const [identity, setIdentity] = useState<HubIdentityInfo | null>(() =>
+  const [identity, setIdentity] = useState<ForgeIdentityInfo | null>(() =>
     getCachedIdentity(),
   );
   const [sessionReady, setSessionReady] = useState(false);
@@ -202,9 +209,20 @@ export function AccountPage() {
   // NEW CODE - TESTING: vault API keys
   const [apiKeys, setApiKeys] = useState<VaultApiKeyWrap[]>([]);
   const [apiKeyName, setApiKeyName] = useState("");
+  // NEW CODE - TESTING: mintable envelope scopes (repos / pages / settings)
+  const [mintScopes, setMintScopes] = useState<VaultApiKeyScope[]>([
+    ENVELOPE_REPOS,
+  ]);
   const [mintedApiKey, setMintedApiKey] = useState<string | null>(null);
   const [mintedVaultId, setMintedVaultId] = useState<string | null>(null);
   const [revokeId, setRevokeId] = useState<string | null>(null);
+
+  const toggleMintScope = (scope: VaultApiKeyScope, on: boolean) => {
+    setMintScopes((prev) => {
+      if (on) return prev.includes(scope) ? prev : [...prev, scope];
+      return prev.filter((s) => s !== scope);
+    });
+  };
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // const [syncPassword, setSyncPassword] = useState("");
   // const [syncTotp, setSyncTotp] = useState("");
@@ -440,7 +458,7 @@ export function AccountPage() {
         <div className="auth-brand">
           <Link to="/" className="auth-brand-mark">
             <BrandLogo size={40} className="brand-logo" />
-            GitAtlas
+            {brand.displayName}
           </Link>
         </div>
         <PageLoadingOverlay skeleton="auth" message="" />
@@ -592,7 +610,7 @@ export function AccountPage() {
             Same{" "}
             <span className="mono">git-identity.bundle</span> format as
             freenet-git. Download it and copy the passphrase — that pair is
-            how you restore in GitAtlas or the CLI later.
+            how you restore in {brand.displayName} or the CLI later.
           </p>
           {error ? <div className="error-banner">{error}</div> : null}
           {note ? <p className="muted auth-note">{note}</p> : null}
@@ -844,7 +862,7 @@ export function AccountPage() {
 
     return (
       <AuthShell>
-        <h1 className="auth-heading">Sign in to GitAtlas</h1>
+        <h1 className="auth-heading">Sign in to {brand.displayName}</h1>
         <p className="auth-lede auth-lede-center">
           Identities live on your Freenet node. No central account.
         </p>
@@ -1128,7 +1146,7 @@ export function AccountPage() {
                   {vaultBackupEnabled ? ( ... ) : ( ... )}
                   */}
                   <p className="muted tiny">
-                    Saving publishes a GitAtlas profile contract addressed by
+                    Saving publishes a {brand.displayName} profile contract addressed by
                     your fingerprint. Anyone can read it; only your identity can
                     update it.
                   </p>
@@ -1175,7 +1193,7 @@ export function AccountPage() {
                     {/* OLD CODE - KEEP UNTIL CONFIRMED WORKING
                     disabled={!isStoredCustomAvatar(avatar)}
                     — load strips non-upload values to "", so Reset stayed disabled
-                    even when HubProfile still had a frozen/generated avatar on chain.
+                    even when ForgeProfile still had a frozen/generated avatar on chain.
                     NEW CODE - TESTING: always allow Reset; Save writes empty. */}
                     <button
                       type="button"
@@ -1387,7 +1405,7 @@ export function AccountPage() {
                         const status = await compareVaultAndDelegate();
                         setSyncStatus(status);
                         setNote(
-                          "Pushed this node’s repo and Pages keys to GitAtlas vault.",
+                          `Pushed this node’s repo and Pages keys to ${brand.displayName} vault.`,
                         );
                       })
                     }
@@ -1413,7 +1431,7 @@ export function AccountPage() {
               </h2>
               <p className="muted tiny">
                 After <span className="mono">freenet-git create</span>, merge the
-                updated CLI bundle here. If GitAtlas vault was already in sync with this
+                updated CLI bundle here. If {brand.displayName} vault was already in sync with this
                 node, the vault auto-updates (signed-in identity — no password).
                 If vault and this node were out of sync, the merge still updates
                 the delegate — resolve the conflict in{" "}
@@ -1638,7 +1656,9 @@ export function AccountPage() {
                 <h1>API keys</h1>
                 <p className="muted">
                   Scoped keys for CLI tools (any Freenet node). Mint while signed
-                  in — keys unlock repo envelopes only, not your identity seed.
+                  in — each key unlocks only the envelopes you select, not your
+                  identity seed. Hub register / about / rename still need your
+                  identity bundle (<span className="mono">{brand.cliName} repo</span>).
                   Revoke to invalidate a key.
                 </p>
               </header>
@@ -1658,8 +1678,17 @@ export function AccountPage() {
                     onSubmit={(e) => {
                       e.preventDefault();
                       void run(async () => {
+                        if (mintScopes.length === 0) {
+                          throw new Error("Select at least one scope");
+                        }
+                        // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+                        // const { apiKey, wrap, vault_id } = await mintVaultApiKey({
+                        //   name: apiKeyName,
+                        // });
+                        // NEW CODE - TESTING: pass selected envelope scopes
                         const { apiKey, wrap, vault_id } = await mintVaultApiKey({
                           name: apiKeyName,
+                          scopes: mintScopes,
                         });
                         setMintedApiKey(apiKey);
                         setMintedVaultId(vault_id);
@@ -1695,7 +1724,64 @@ export function AccountPage() {
                         autoComplete="off"
                       />
                     </label>
-                    <button type="submit" className="btn" disabled={busy}>
+                    <fieldset className="settings-field">
+                      <legend className="settings-label">Scopes</legend>
+                      <p className="settings-hint">
+                        Envelope access for this key. CLI vault sync needs{" "}
+                        <span className="mono">repos</span>.
+                      </p>
+                      <label className="settings-check">
+                        <input
+                          type="checkbox"
+                          checked={mintScopes.includes(ENVELOPE_REPOS)}
+                          onChange={(e) =>
+                            toggleMintScope(ENVELOPE_REPOS, e.target.checked)
+                          }
+                        />
+                        <span>
+                          <strong>repos</strong>
+                          <span className="muted block tiny">
+                            Repo keys envelope —{" "}
+                            <span className="mono">{brand.cliName} vault sync-bundle</span>
+                          </span>
+                        </span>
+                      </label>
+                      <label className="settings-check">
+                        <input
+                          type="checkbox"
+                          checked={mintScopes.includes(ENVELOPE_PAGES)}
+                          onChange={(e) =>
+                            toggleMintScope(ENVELOPE_PAGES, e.target.checked)
+                          }
+                        />
+                        <span>
+                          <strong>pages</strong>
+                          <span className="muted block tiny">
+                            Pages website signing keys envelope
+                          </span>
+                        </span>
+                      </label>
+                      <label className="settings-check">
+                        <input
+                          type="checkbox"
+                          checked={mintScopes.includes(ENVELOPE_SETTINGS)}
+                          onChange={(e) =>
+                            toggleMintScope(ENVELOPE_SETTINGS, e.target.checked)
+                          }
+                        />
+                        <span>
+                          <strong>settings</strong>
+                          <span className="muted block tiny">
+                            Settings / prefs envelope (Protect remember, backups)
+                          </span>
+                        </span>
+                      </label>
+                    </fieldset>
+                    <button
+                      type="submit"
+                      className="btn"
+                      disabled={busy || mintScopes.length === 0}
+                    >
                       <BusyLabel
                         busy={busy && settingsSection === "api-keys"}
                         busyText="Minting…"
@@ -1806,9 +1892,14 @@ export function AccountPage() {
                   <p className="muted tiny" style={{ marginTop: "1rem" }}>
                     CLI:{" "}
                     <span className="mono">
-                      node scripts/cli/gitatlas-vault.mjs sync-bundle --api-key
-                      … --bundle …
+                      {brand.cliName} vault sync-bundle --api-key … --bundle …
                     </span>
+                    {" "}
+                    (from repo:{" "}
+                    <span className="mono">npm run {brand.cliName} -- vault …</span>
+                    {" "}
+                    or{" "}
+                    <span className="mono">npm run install:cli</span>)
                   </p>
                 </>
               )}

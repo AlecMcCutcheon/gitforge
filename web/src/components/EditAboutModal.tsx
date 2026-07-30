@@ -1,9 +1,9 @@
 /**
  * GitHub-style "Edit repository details" for About (description / website / topics).
- * Description → RepoState; website + topics → HubRegistry (owner dual-sig).
+ * Description → RepoState; website + topics → ForgeRegistry (owner dual-sig).
  */
 import { useEffect, useState } from "react";
-import { api, type HubRegistration } from "../api";
+import { api, type ForgeRegistration } from "../api";
 import { FlashNotice } from "./FlashNotice";
 import { BusyLabel, OperationStatus } from "./OperationStatus";
 import { defaultBusyLabel } from "../lib/busy-copy";
@@ -25,7 +25,7 @@ export interface EditAboutModalProps {
   pagesSiteUrl?: string | null;
   onSaved: (next: {
     description: string;
-    registration: HubRegistration;
+    registration: ForgeRegistration;
   }) => void;
 }
 

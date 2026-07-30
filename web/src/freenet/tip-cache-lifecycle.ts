@@ -81,7 +81,7 @@ export function notifyRepoTipPushed(prefix: string): void {
   if (!p) return;
   try {
     window.dispatchEvent(
-      new CustomEvent("freenethub-repo-tip-pushed", {
+      new CustomEvent("gitforge-repo-tip-pushed", {
         detail: { prefix: p },
       }),
     );
@@ -97,6 +97,6 @@ export function onRepoTipPushed(
     const prefix = (ev as CustomEvent<{ prefix: string }>).detail?.prefix;
     if (prefix) handler(prefix);
   };
-  window.addEventListener("freenethub-repo-tip-pushed", fn);
-  return () => window.removeEventListener("freenethub-repo-tip-pushed", fn);
+  window.addEventListener("gitforge-repo-tip-pushed", fn);
+  return () => window.removeEventListener("gitforge-repo-tip-pushed", fn);
 }

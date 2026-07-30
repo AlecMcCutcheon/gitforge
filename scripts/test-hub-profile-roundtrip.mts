@@ -20,7 +20,7 @@ import { resetFreenetConn } from "../web/src/freenet/ws.ts";
   host: "127.0.0.1:7509",
 };
 
-const SIGN_DOMAIN = new TextEncoder().encode("freenethub.profile.v1\0");
+const SIGN_DOMAIN = new TextEncoder().encode("gitforge.profile.v1\0");
 
 function pushField(out: number[], bytes: Uint8Array): void {
   for (const b of bytes) out.push(b);

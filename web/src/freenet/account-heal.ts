@@ -1,5 +1,5 @@
 /**
- * Probe + background heal for HubProfile / HubVault (Account health).
+ * Probe + background heal for ForgeProfile / ForgeVault (Account health).
  */
 import {
   ensureAccountContracts,
@@ -10,14 +10,14 @@ import {
   probeVaultBackupEnabled,
 } from "./auth-api";
 import { probeAccountHealth, type AccountHealthResult } from "./account-health";
-import { fetchHubProfile } from "./hub-profile";
-import { fetchHubVault } from "./hub-vault";
+import { fetchForgeProfile } from "./forge-profile";
+import { fetchForgeVault } from "./forge-vault";
 import {
   notifySelfSystem,
   SYSTEM_KIND_ACCOUNT_HEALED,
 } from "./system-notify";
 
-const HEALTH_STATE_KEY = "gitatlas.account-health.state";
+const HEALTH_STATE_KEY = "gitforge.account-health.state";
 
 export interface AccountHealthPersisted {
   lastCheckedAt: number | null;
@@ -67,7 +67,7 @@ function saveAccountHealthPersisted(next: AccountHealthPersisted): void {
   }
   try {
     window.dispatchEvent(
-      new CustomEvent("freenethub-account-health", { detail: next }),
+      new CustomEvent("gitforge-account-health", { detail: next }),
     );
   } catch {
     /* ignore */
@@ -81,8 +81,8 @@ export function onAccountHealthPersisted(
     const detail = (ev as CustomEvent<AccountHealthPersisted>).detail;
     handler(detail ?? getAccountHealthPersisted());
   };
-  window.addEventListener("freenethub-account-health", fn);
-  return () => window.removeEventListener("freenethub-account-health", fn);
+  window.addEventListener("gitforge-account-health", fn);
+  return () => window.removeEventListener("gitforge-account-health", fn);
 }
 
 /**
@@ -133,7 +133,7 @@ export async function runAccountHealthPass(opts?: {
 
   if (probe.profile === "missing") {
     opts?.onProgress?.("Rescuing public profile from network…");
-    const rescued = await fetchHubProfile(id.fingerprint, {
+    const rescued = await fetchForgeProfile(id.fingerprint, {
       reliable: true,
     }).catch(() => null);
     if (rescued) {
@@ -150,7 +150,7 @@ export async function runAccountHealthPass(opts?: {
           syncFromVault: "none",
           onStatus: opts?.onProgress,
         });
-        const again = await fetchHubProfile(id.fingerprint, {
+        const again = await fetchForgeProfile(id.fingerprint, {
           reliable: true,
         }).catch(() => null);
         if (again) {
@@ -171,7 +171,7 @@ export async function runAccountHealthPass(opts?: {
 
   if (probe.vault === "missing" && vaultId) {
     opts?.onProgress?.("Rescuing account vault from network…");
-    const vaultState = await fetchHubVault(vaultId).catch(() => null);
+    const vaultState = await fetchForgeVault(vaultId).catch(() => null);
     if (vaultState?.identity_dek_wrap?.blob_b64) {
       healedVault = true;
       healNotes.push("Account vault re-fetched onto this node.");
@@ -223,7 +223,7 @@ export async function runAccountHealthPass(opts?: {
         }
       } catch (err) {
         console.warn(
-          "[freenet-hub] quiet vault sync skipped:",
+          "[freenet-forge] quiet vault sync skipped:",
           err instanceof Error ? err.message : err,
         );
       }

@@ -442,6 +442,99 @@ dependencies = [
 ]
 
 [[package]]
+name = "freenet-forge-identity"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "bs58",
+ "ed25519-dalek",
+ "freenet-git-types",
+ "freenet-stdlib",
+ "getrandom",
+ "hex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "freenet-forge-pages"
+version = "0.1.0"
+dependencies = [
+ "ciborium",
+ "ed25519-dalek",
+ "freenet-stdlib",
+ "getrandom",
+ "hex",
+ "lzma-rs",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "freenet-forge-profile"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "ed25519-compact",
+ "ed25519-dalek",
+ "freenet-stdlib",
+ "hex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "freenet-forge-registry"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "ed25519-compact",
+ "ed25519-dalek",
+ "freenet-stdlib",
+ "hex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "freenet-forge-repo"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "ed25519-compact",
+ "freenet-stdlib",
+ "hex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "freenet-forge-stars"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "ed25519-compact",
+ "ed25519-dalek",
+ "freenet-stdlib",
+ "hex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "freenet-forge-vault"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "ed25519-compact",
+ "ed25519-dalek",
+ "freenet-stdlib",
+ "hex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "freenet-git-encoding"
 version = "0.1.24"
 dependencies = [
@@ -461,99 +554,6 @@ dependencies = [
  "serde",
  "serde_bytes",
  "thiserror",
-]
-
-[[package]]
-name = "freenet-hub-identity"
-version = "0.1.0"
-dependencies = [
- "bincode",
- "bs58",
- "ed25519-dalek",
- "freenet-git-types",
- "freenet-stdlib",
- "getrandom",
- "hex",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "freenet-hub-pages"
-version = "0.1.0"
-dependencies = [
- "ciborium",
- "ed25519-dalek",
- "freenet-stdlib",
- "getrandom",
- "hex",
- "lzma-rs",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "freenet-hub-profile"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "ed25519-compact",
- "ed25519-dalek",
- "freenet-stdlib",
- "hex",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "freenet-hub-registry"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "ed25519-compact",
- "ed25519-dalek",
- "freenet-stdlib",
- "hex",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "freenet-hub-repo"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "ed25519-compact",
- "freenet-stdlib",
- "hex",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "freenet-hub-stars"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "ed25519-compact",
- "ed25519-dalek",
- "freenet-stdlib",
- "hex",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "freenet-hub-vault"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "ed25519-compact",
- "ed25519-dalek",
- "freenet-stdlib",
- "hex",
- "serde",
- "serde_json",
 ]
 
 [[package]]

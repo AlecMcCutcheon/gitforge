@@ -45,7 +45,7 @@ export function defaultContactFromFingerprint(fingerprint: string): string {
   return fingerprintWordsJoined(fingerprint);
 }
 
-/** `freenet:id:<bs58>` from the 32-byte ed25519 seed (matches hub-identity). */
+/** `freenet:id:<bs58>` from the 32-byte ed25519 seed (matches forge-identity). */
 export function fingerprintFromSeedHex(seedHex: string): string {
   const secret = hexToBytes(seedHex.trim().toLowerCase().replace(/^0x/, ""));
   if (secret.length !== 32) {

@@ -59,7 +59,7 @@ const WITTY: Record<BusyScenario, string[]> = {
   "about-save": [
     "Signing the About blurb…",
     "Updating the repo contract…",
-    "Refreshing HubRegistry topics…",
+    "Refreshing ForgeRegistry topics…",
   ],
   generic: [
     "Talking to Freenet…",

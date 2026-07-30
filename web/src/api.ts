@@ -1,6 +1,6 @@
 import { EMBEDDED_DEMOS } from "./demos";
 import { isBrowserNativeMode } from "./tip-browse";
-import type { LanguageBreakdown } from "@freenet-hub/linguist";
+import type { LanguageBreakdown } from "@gitforge/linguist";
 import {
   nativeBlob,
   nativeBranches,
@@ -124,7 +124,7 @@ export interface ContributorsResponse {
   note?: string;
 }
 
-export interface HubRegistration {
+export interface ForgeRegistration {
   schema_version: number;
   repo_prefix: string;
   label: string;
@@ -137,7 +137,7 @@ export interface HubRegistration {
   /** Light adaptive Discover flags. */
   public_meta?: Record<string, string>;
   identity_fingerprint: string;
-  /** Unused for display — HubProfile.username is the live display name. */
+  /** Unused for display — ForgeProfile.username is the live display name. */
   identity_name: string;
   identity_email: string | null;
   /** Base58 repo owner VK — required for dual-sig-v1. */
@@ -153,11 +153,11 @@ export interface PersonResponse {
   fingerprint: string;
   displayName: string;
   email: string | null;
-  repos: HubRegistration[];
+  repos: ForgeRegistration[];
   note?: string;
 }
 
-export interface HubPagesConfig {
+export interface ForgePagesConfig {
   schema_version?: number;
   repo_prefix: string;
   label: string;
@@ -177,7 +177,7 @@ export interface HubPagesConfig {
 }
 
 // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-// function pagesOffStub(prefix: string, label: string): HubPagesConfig {
+// function pagesOffStub(prefix: string, label: string): ForgePagesConfig {
 //   return {
 //     repo_prefix: prefix,
 //     label,
@@ -285,7 +285,7 @@ export function describeBrowseError(err: unknown): {
       kind: "legacy",
       message:
         message +
-        "\n\nThis mirror has no tip-pack metadata. GitAtlas will not download every legacy pack for browse. Use freenet-stdlib / freenet-git demos, or republish with freenet-git ≥ 0.1.16.",
+        "\n\nThis mirror has no tip-pack metadata. GitForge will not download every legacy pack for browse. Use freenet-stdlib / freenet-git demos, or republish with freenet-git ≥ 0.1.16.",
     };
   }
   if (
@@ -297,7 +297,7 @@ export function describeBrowseError(err: unknown): {
       kind: "chunked",
       message:
         message +
-        "\n\nChunked tip-pack stream timed out. GitAtlas retried; try again, or open a smaller tipped repo (stdlib / freenet-git).",
+        "\n\nChunked tip-pack stream timed out. GitForge retried; try again, or open a smaller tipped repo (stdlib / freenet-git).",
     };
   }
   if (
@@ -319,7 +319,7 @@ export function describeBrowseError(err: unknown): {
       kind: "missing",
       message:
         "Contract not found on this node or its peers.\n\n" +
-        "GitAtlas asked Freenet for a tip-pack (or related) contract and got a terminal miss — " +
+        "GitForge asked Freenet for a tip-pack (or related) contract and got a terminal miss — " +
         "not a slow sync. The bytes may have left peer caches. " +
         "Retry after rescue/re-push, or restore from a durable backup.",
     };
@@ -401,7 +401,7 @@ export const api = {
       const { nativeGetIdentity } = await import("./freenet/owner-api");
       const id = await nativeGetIdentity();
       if (!id) {
-        return { ok: false, stdout: "", stderr: "No GitAtlas identity in delegate" };
+        return { ok: false, stdout: "", stderr: "No GitForge identity in delegate" };
       }
       const stdout = `${id.name} <${id.email}>\n${id.fingerprint}\n`;
       return { ok: true, stdout, stderr: "" };
@@ -457,7 +457,7 @@ export const api = {
         registration: result.registration ?? null,
         registerError: result.registration
           ? null
-          : "create Put ok; HubRegistry register skipped or failed",
+          : "create Put ok; ForgeRegistry register skipped or failed",
       };
     }
     return apiFetch<{
@@ -466,7 +466,7 @@ export const api = {
       stderr: string;
       url?: string;
       error?: string;
-      registration?: HubRegistration | null;
+      registration?: ForgeRegistration | null;
       registerError?: string | null;
     }>(
       "/api/repos/create",
@@ -585,7 +585,7 @@ export const api = {
       const { nativePagesStatus } = await import("./freenet/native-pages");
       return nativePagesStatus(prefix, label, autoSync);
     }
-    return apiFetch<HubPagesConfig>(
+    return apiFetch<ForgePagesConfig>(
       `/api/r/${encodeURIComponent(prefix)}/${encodeURIComponent(label)}/pages${autoSync ? "?autoSync=1" : ""}`,
       undefined,
       autoSync ? 600_000 : 15_000,
@@ -605,7 +605,7 @@ export const api = {
       const { nativePagesEnable } = await import("./freenet/native-pages");
       return nativePagesEnable(prefix, label, body);
     }
-    return apiFetch<HubPagesConfig>(
+    return apiFetch<ForgePagesConfig>(
       `/api/r/${encodeURIComponent(prefix)}/${encodeURIComponent(label)}/pages/enable`,
       {
         method: "POST",
@@ -625,7 +625,7 @@ export const api = {
       const { nativePagesSync } = await import("./freenet/native-pages");
       return nativePagesSync(prefix, label);
     }
-    return apiFetch<HubPagesConfig>(
+    return apiFetch<ForgePagesConfig>(
       `/api/r/${encodeURIComponent(prefix)}/${encodeURIComponent(label)}/pages/sync`,
       { method: "POST" },
       600_000,
@@ -651,7 +651,7 @@ export const api = {
       await clearAboutWebsiteIfMatchesPages(prefix, label, cfg);
       return cfg;
     }
-    return apiFetch<HubPagesConfig>(
+    return apiFetch<ForgePagesConfig>(
       `/api/r/${encodeURIComponent(prefix)}/${encodeURIComponent(label)}/pages/disable`,
       {
         method: "POST",
@@ -663,15 +663,15 @@ export const api = {
   },
   registry: async () => {
     if (isBrowserNativeMode()) {
-      const { fetchHubRegistry } = await import("./freenet/hub-registry");
+      const { fetchForgeRegistry } = await import("./freenet/forge-registry");
       const { loadRegistryCached } = await import("./freenet/discover-cache");
       // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-      // return fetchHubRegistry();
-      // NEW CODE - TESTING: share one HubRegistry GET across discover/repo/header
-      const repos = await loadRegistryCached(() => fetchHubRegistry());
+      // return fetchForgeRegistry();
+      // NEW CODE - TESTING: share one ForgeRegistry GET across discover/repo/header
+      const repos = await loadRegistryCached(() => fetchForgeRegistry());
       return { repos, note: undefined as string | undefined, source: "contract" as const };
     }
-    return apiFetch<{ repos: HubRegistration[]; note?: string }>(
+    return apiFetch<{ repos: ForgeRegistration[]; note?: string }>(
       "/api/registry",
       undefined,
       15_000,
@@ -679,17 +679,17 @@ export const api = {
   },
   registryLookup: async (prefix: string) => {
     if (isBrowserNativeMode()) {
-      const { fetchHubRegistry } = await import("./freenet/hub-registry");
+      const { fetchForgeRegistry } = await import("./freenet/forge-registry");
       const { loadRegistryCached } = await import("./freenet/discover-cache");
       // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-      // const { repos } = await fetchHubRegistry();
+      // const { repos } = await fetchForgeRegistry();
       // NEW CODE - TESTING
-      const repos = await loadRegistryCached(() => fetchHubRegistry());
+      const repos = await loadRegistryCached(() => fetchForgeRegistry());
       const hit = repos.find((r) => r.repo_prefix === prefix);
       if (!hit) throw new Error("not found");
       return hit;
     }
-    return apiFetch<HubRegistration>(
+    return apiFetch<ForgeRegistration>(
       `/api/registry/${encodeURIComponent(prefix)}`,
       undefined,
       10_000,
@@ -718,7 +718,7 @@ export const api = {
       const { nativeRegisterRepo } = await import("./freenet/owner-api");
       return nativeRegisterRepo(body);
     }
-    return apiFetch<HubRegistration>("/api/registry/register", {
+    return apiFetch<ForgeRegistration>("/api/registry/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -729,7 +729,7 @@ export const api = {
       const { nativeUnregisterRepo } = await import("./freenet/owner-api");
       // OLD CODE - KEEP UNTIL CONFIRMED WORKING
       // await nativeUnregisterRepo({ prefix });
-      // NEW CODE - TESTING: optional seq to beat live HubRegistry listing
+      // NEW CODE - TESTING: optional seq to beat live ForgeRegistry listing
       await nativeUnregisterRepo({ prefix, seq: registrySeq });
       return;
     }
@@ -766,7 +766,7 @@ export const api = {
       "Rename requires Freenet website mode (owner-signed RepoState update).",
     );
   },
-  /** About: RepoState.description + HubRegistry website/topics. */
+  /** About: RepoState.description + ForgeRegistry website/topics. */
   updateRepoAbout: async (input: {
     prefix: string;
     label: string;
@@ -774,7 +774,7 @@ export const api = {
     description: string;
     website?: string | null;
     topics?: string[];
-  }): Promise<{ description: string; registration: HubRegistration }> => {
+  }): Promise<{ description: string; registration: ForgeRegistration }> => {
     if (isBrowserNativeMode()) {
       const { nativeUpdateRepoAbout } = await import("./freenet/owner-api");
       return nativeUpdateRepoAbout(input);

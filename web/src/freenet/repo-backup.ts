@@ -8,7 +8,7 @@ import { summarizeRepoState } from "../tip-browse/decode-wasm";
 import { idbGetPack } from "../tip-browse/idb-cache";
 import { lookupRegistration } from "../registry/client";
 import { bytesToHex } from "./keys";
-import { fetchHubRepoMeta } from "./hub-repo";
+import { fetchForgeRepoMeta } from "./forge-repo";
 import { fetchPackByHash, fetchRepoState } from "./tip-fetch";
 import {
   backupAddReason,
@@ -29,9 +29,9 @@ import {
 export type { BackupReason, RepoBackupPin };
 export { BACKUP_PREFS_PIN_PREFIX };
 
-const AUTO_SYNC_KEY = "gitatlas.repo-backup.auto-sync"; // legacy
-const PREFS_KEY = "gitatlas.repo-backup.prefs";
-const PREFS_EVENT = "freenethub-backup-prefs";
+const AUTO_SYNC_KEY = "gitforge.repo-backup.auto-sync";
+const PREFS_KEY = "gitforge.repo-backup.prefs";
+const PREFS_EVENT = "gitforge-backup-prefs";
 
 // OLD CODE - KEEP UNTIL CONFIRMED WORKING
 // export type BackupFreshness = "none" | "fresh" | "stale" | "unknown";
@@ -120,13 +120,13 @@ export function setBackupPrefs(next: Partial<BackupPrefs>): BackupPrefs {
     /* ignore */
   }
   void persistBackupPrefsToIdentity(merged).catch((err) => {
-    console.warn("[freenet-hub] backup prefs identity persist failed", err);
+    console.warn("[freenet-forge] backup prefs identity persist failed", err);
   });
-  // NEW CODE - TESTING: also seal into HubVault settings envelope
+  // NEW CODE - TESTING: also seal into ForgeVault settings envelope
   void import("./auth-api")
     .then(({ pushBackupPrefsToVault }) => pushBackupPrefsToVault(merged))
     .catch((err) => {
-      console.warn("[freenet-hub] backup prefs vault persist failed", err);
+      console.warn("[freenet-forge] backup prefs vault persist failed", err);
     });
   return merged;
 }
@@ -188,8 +188,8 @@ export function onBackupPrefsChange(
 async function persistBackupPrefsToIdentity(prefs: BackupPrefs): Promise<void> {
   const { isBrowserNativeMode } = await import("../tip-browse");
   if (!isBrowserNativeMode()) return;
-  const { hubOwnerContractsReady } = await import("./owner-constants");
-  if (!hubOwnerContractsReady()) return;
+  const { forgeOwnerContractsReady } = await import("./owner-constants");
+  if (!forgeOwnerContractsReady()) return;
   const { getCachedIdentity } = await import("./auth-api");
   if (!getCachedIdentity()) return;
   const { nativeUpsertRepoBackupPin } = await import("./owner-api");
@@ -209,14 +209,14 @@ async function persistBackupPrefsToIdentity(prefs: BackupPrefs): Promise<void> {
   });
 }
 
-/** Load prefs from identity secret + HubVault settings (vault wins when present). */
+/** Load prefs from identity secret + ForgeVault settings (vault wins when present). */
 export async function hydrateBackupPrefsFromIdentity(): Promise<BackupPrefs> {
   let local = readPrefsLocal();
   try {
     const { isBrowserNativeMode } = await import("../tip-browse");
     if (!isBrowserNativeMode()) return local;
-    const { hubOwnerContractsReady } = await import("./owner-constants");
-    if (!hubOwnerContractsReady()) return local;
+    const { forgeOwnerContractsReady } = await import("./owner-constants");
+    if (!forgeOwnerContractsReady()) return local;
     const { nativeListRepoBackupPins } = await import("./owner-api");
     const rows = await nativeListRepoBackupPins();
     for (const raw of rows) {
@@ -358,7 +358,7 @@ async function captureTipBlobs(
 }
 
 /**
- * Snapshot tip packs + HubRegistry listing + HubRepoMeta into the shared store.
+ * Snapshot tip packs + ForgeRegistry listing + ForgeRepoMeta into the shared store.
  * Dedupes when starring an owned repo (same pin, both reasons).
  */
 export async function pinRepoBackup(
@@ -433,7 +433,7 @@ export async function pinRepoBackup(
 
   opts?.onProgress?.("Snapshotting Hub listing…");
   const registry = await lookupRegistration(prefix).catch(() => null);
-  const repoMeta = await fetchHubRepoMeta(prefix).catch(() => null);
+  const repoMeta = await fetchForgeRepoMeta(prefix).catch(() => null);
 
   const now = Date.now();
   const pin: RepoBackupPin = {
@@ -456,7 +456,7 @@ export async function pinRepoBackup(
   try {
     await backupGcUnreferencedBlobs();
   } catch (err) {
-    console.warn("[freenet-hub] backup GC after pin failed", err);
+    console.warn("[freenet-forge] backup GC after pin failed", err);
   }
   const saved = (await backupGetPin(prefix)) ?? pin;
   notifyBackupStatusChanged(prefix);
@@ -602,7 +602,7 @@ export async function backupBytesForHash(
   return new Uint8Array(row.bytes);
 }
 
-const BACKUP_STATUS_EVENT = "freenethub-backup-status";
+const BACKUP_STATUS_EVENT = "gitforge-backup-status";
 
 /** Notify list chrome to refresh badge after pin/sync/clear/auto-update. */
 export function notifyBackupStatusChanged(prefix?: string): void {
@@ -710,7 +710,7 @@ export async function repairIncompleteBackup(
     return getBackupStatus(prefix);
   } catch (err) {
     console.warn(
-      "[freenet-hub] incomplete backup full re-pin failed; trying per-hash",
+      "[freenet-forge] incomplete backup full re-pin failed; trying per-hash",
       err,
     );
   }
@@ -737,7 +737,7 @@ export async function repairIncompleteBackup(
       if (!bytes) bytes = await fetchPackByHash(h, prefix);
       await storePackBytes(h, bytes, []);
     } catch (err) {
-      console.warn("[freenet-hub] incomplete backup pack repair failed", h, err);
+      console.warn("[freenet-forge] incomplete backup pack repair failed", h, err);
     }
   }
   notifyBackupStatusChanged(prefix);
@@ -843,7 +843,7 @@ export async function refreshBackupAfterTipPush(
   }
   if (!tipped) {
     console.warn(
-      "[freenet-hub] backup after tip: tip not readable yet",
+      "[freenet-forge] backup after tip: tip not readable yet",
       prefix.slice(0, 12),
     );
     return;
@@ -859,7 +859,7 @@ export async function refreshBackupAfterTipPush(
     await pinRepoBackup(prefix, reason, { force: true });
   } catch (err) {
     console.warn(
-      "[freenet-hub] backup after tip failed",
+      "[freenet-forge] backup after tip failed",
       prefix.slice(0, 12),
       err instanceof Error ? err.message : err,
     );
@@ -898,7 +898,7 @@ export async function refreshBackupAfterTipPush(
       });
     }
   } catch (err) {
-    console.warn("[freenet-hub] backup after tip notify failed", err);
+    console.warn("[freenet-forge] backup after tip notify failed", err);
   }
 
   notifyBackupStatusChanged(prefix);
@@ -1047,15 +1047,15 @@ export async function runGlobalBackupPass(opts?: {
         }
       }
     } catch (err) {
-      console.warn("[freenet-hub] backup worker list repos failed", err);
+      console.warn("[freenet-forge] backup worker list repos failed", err);
     }
   }
 
   if (prefs.autoBackupStars || prefs.autoUpdateExisting) {
     try {
-      const { fetchHubStars, reposStarredBy } = await import("./hub-stars");
+      const { fetchForgeStars, reposStarredBy } = await import("./forge-stars");
       const id = getCachedIdentity()!;
-      const { state } = await fetchHubStars();
+      const { state } = await fetchForgeStars();
       const stars = reposStarredBy(state, id.fingerprint);
       for (const s of stars) {
         const prefix = s.repo_prefix;
@@ -1091,7 +1091,7 @@ export async function runGlobalBackupPass(opts?: {
         }
       }
     } catch (err) {
-      console.warn("[freenet-hub] backup worker list stars failed", err);
+      console.warn("[freenet-forge] backup worker list stars failed", err);
     }
   }
 
@@ -1129,7 +1129,7 @@ export async function runGlobalBackupPass(opts?: {
             prefix: job.prefix,
           });
         } catch (err) {
-          console.warn("[freenet-hub] backup create notify failed", err);
+          console.warn("[freenet-forge] backup create notify failed", err);
         }
       } else {
         const pin = await backupGetPin(job.prefix);
@@ -1173,7 +1173,7 @@ export async function runGlobalBackupPass(opts?: {
             });
           } catch (err) {
             console.warn(
-              "[freenet-hub] backup update notify failed",
+              "[freenet-forge] backup update notify failed",
               err,
             );
           }
@@ -1184,7 +1184,7 @@ export async function runGlobalBackupPass(opts?: {
       }
     } catch (err) {
       console.warn(
-        `[freenet-hub] backup worker ${job.kind} ${job.prefix}`,
+        `[freenet-forge] backup worker ${job.kind} ${job.prefix}`,
         err,
       );
     }

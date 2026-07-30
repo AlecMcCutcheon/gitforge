@@ -1,19 +1,19 @@
 /**
  * Collaborator invites: seal site key + owner site-key coupon into recipient inbox.
- * Repo-level pending invite is written to HubRegistry; inbox is only the user notify.
- * Accept: invitee identity-signs coupon → HubRegistry Put → then import secret.
- * Deny: invitee removes HubRegistry pending invite, then prunes inbox.
+ * Repo-level pending invite is written to ForgeRegistry; inbox is only the user notify.
+ * Accept: invitee identity-signs coupon → ForgeRegistry Put → then import secret.
+ * Deny: invitee removes ForgeRegistry pending invite, then prunes inbox.
  */
 import { bytesToHex, randomBytes } from "@noble/hashes/utils";
 import {
   appendInboxMessage,
-  fetchHubProfile,
-  type HubProfileStateJson,
-} from "./hub-profile";
+  fetchForgeProfile,
+  type ForgeProfileStateJson,
+} from "./forge-profile";
 import {
-  fetchHubRegistry,
-  type HubRegistryPendingInviteOp,
-} from "./hub-registry";
+  fetchForgeRegistry,
+  type ForgeRegistryPendingInviteOp,
+} from "./forge-registry";
 import { sealInboxMessage } from "./inbox-crypto";
 import {
   nativeAddPendingInvite,
@@ -49,7 +49,7 @@ export interface PersonSearchHit {
   avatar: string;
   wordSlug: string;
   inbox_pk: string;
-  profile: HubProfileStateJson;
+  profile: ForgeProfileStateJson;
   /** Set when search runs against a repo listing — blocks re-invite. */
   inviteBlockedReason?: string | null;
 }
@@ -63,16 +63,16 @@ export function contributorFingerprintsForPrefix(
 }
 
 export function pendingInviteFingerprintsForPrefix(
-  pendingInvites: Record<string, Record<string, HubRegistryPendingInviteOp>>,
+  pendingInvites: Record<string, Record<string, ForgeRegistryPendingInviteOp>>,
   prefix: string,
 ): Set<string> {
   return new Set(Object.keys(pendingInvites[prefix] ?? {}));
 }
 
 export function pendingInvitesForPrefix(
-  pendingInvites: Record<string, Record<string, HubRegistryPendingInviteOp>>,
+  pendingInvites: Record<string, Record<string, ForgeRegistryPendingInviteOp>>,
   prefix: string,
-): HubRegistryPendingInviteOp[] {
+): ForgeRegistryPendingInviteOp[] {
   return Object.values(pendingInvites[prefix] ?? {});
 }
 
@@ -111,7 +111,7 @@ export function inviteBlockReason(input: {
 export async function searchPersonForInvite(
   query: string,
   opts?: {
-    /** HubRegistry listing owner fingerprint for this repo. */
+    /** ForgeRegistry listing owner fingerprint for this repo. */
     ownerFingerprint?: string | null;
     /** Already-accepted contributor fingerprints for this repo. */
     contributorFingerprints?: Set<string>;
@@ -130,7 +130,7 @@ export async function searchPersonForInvite(
   if (!resolved.ok) {
     return { ok: false, error: resolved.error, empty: true };
   }
-  const profile = await fetchHubProfile(resolved.fingerprint, {
+  const profile = await fetchForgeProfile(resolved.fingerprint, {
     reliable: true,
   });
   if (!profile) {
@@ -171,13 +171,13 @@ export async function sendRepoInvite(input: {
   if (!self) throw new Error("Sign in before inviting collaborators");
 
   input.onStatus?.("Checking registry membership…");
-  const registry = await fetchHubRegistry();
+  const registry = await fetchForgeRegistry();
   const listing = registry.repos.find((r) => r.repo_prefix === input.prefix);
   if (!listing) {
-    throw new Error("Repository is not listed on GitAtlas — Register first");
+    throw new Error("Repository is not listed on GitForge — Register first");
   }
   if (listing.identity_fingerprint !== self.fingerprint) {
-    throw new Error("Only the GitAtlas registry owner can invite collaborators");
+    throw new Error("Only the GitForge registry owner can invite collaborators");
   }
   const contribs = contributorFingerprintsForPrefix(
     registry.contributors ?? {},
@@ -196,7 +196,7 @@ export async function sendRepoInvite(input: {
   if (blocked) throw new Error(blocked);
 
   input.onStatus?.("Looking up their profile inbox…");
-  const profile = await fetchHubProfile(input.recipientFingerprint, {
+  const profile = await fetchForgeProfile(input.recipientFingerprint, {
     reliable: true,
   });
   if (!profile) {
@@ -204,7 +204,7 @@ export async function sendRepoInvite(input: {
   }
   if (!profile.inbox_pk) {
     throw new Error(
-      "Their profile has no inbox yet — they need to create or restore a GitAtlas identity once so inbox_pk is provisioned.",
+      "Their profile has no inbox yet — they need to create or restore a GitForge identity once so inbox_pk is provisioned.",
     );
   }
 
@@ -225,12 +225,12 @@ export async function sendRepoInvite(input: {
   });
   if (coupon.repo_owner_vk !== listing.repo_owner_vk) {
     throw new Error(
-      "Site key verifying key does not match the GitAtlas listing — re-register or check keys",
+      "Site key verifying key does not match the GitForge listing — re-register or check keys",
     );
   }
 
-  // NEW CODE - TESTING: repo-level pending invite on HubRegistry (source of truth)
-  input.onStatus?.("Recording pending invite on HubRegistry…");
+  // NEW CODE - TESTING: repo-level pending invite on ForgeRegistry (source of truth)
+  input.onStatus?.("Recording pending invite on ForgeRegistry…");
   await nativeAddPendingInvite({
     prefix: input.prefix,
     inviteeFingerprint: profile.identity_fingerprint,
@@ -254,7 +254,7 @@ export async function sendRepoInvite(input: {
   const messageId = bytesToHex(randomBytes(8));
   const created_at = new Date().toISOString();
 
-  input.onStatus?.("Signing + delivering with your GitAtlas identity…");
+  input.onStatus?.("Signing + delivering with your GitForge identity…");
   await appendInboxMessage({
     fingerprint: profile.identity_fingerprint,
     message: {

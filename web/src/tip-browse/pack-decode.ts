@@ -1,5 +1,5 @@
 /**
- * Minimal git pack v2 decoder for GitAtlas browser tip-browse.
+ * Minimal git pack v2 decoder for GitForge browser tip-browse.
  * Supports undeltified objects plus OFS/REF deltas.
  */
 

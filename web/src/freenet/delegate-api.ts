@@ -59,7 +59,7 @@ export function parseDelegateResponse(response: DelegateResponse): object[] {
       const json = new TextDecoder().decode(bytes);
       results.push(JSON.parse(json) as object);
     } catch (e) {
-      console.warn("[hub-delegate] Failed to parse payload:", e);
+      console.warn("[forge-delegate] Failed to parse payload:", e);
     }
   }
   return results;

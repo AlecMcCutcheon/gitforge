@@ -1,5 +1,5 @@
 /**
- * @freenet-hub/licensee — browser port of licensee detection + choosealicense generate.
+ * @gitforge/licensee — browser port of licensee detection + choosealicense generate.
  */
 export { catalog, getLicense, listLicenses } from "./catalog";
 export { discoverCommunityFiles } from "./community";

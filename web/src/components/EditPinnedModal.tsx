@@ -2,7 +2,7 @@
  * Modal to pick up to six pinned repos for the profile Overview.
  */
 import { useMemo, useState } from "react";
-import { PROFILE_PINNED_MAX } from "../freenet/hub-profile";
+import { PROFILE_PINNED_MAX } from "../freenet/forge-profile";
 
 export const OVERVIEW_PINNED_MAX = Math.min(6, PROFILE_PINNED_MAX);
 

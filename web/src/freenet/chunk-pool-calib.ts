@@ -3,7 +3,7 @@
  */
 import { pickBestPoolSize, type PavPoint } from "./chunk-pool-pav";
 
-const STORAGE_KEY = "gitatlas.chunkPool.desiredN";
+const STORAGE_KEY = "gitforge.chunkPool.desiredN";
 const SAMPLE_CAP = 48;
 const EXPLORE_NS = [2, 4, 6, 8] as const;
 const MIN_N = 1;

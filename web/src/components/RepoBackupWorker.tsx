@@ -9,7 +9,7 @@ import {
   onAuthSessionChange,
 } from "../freenet/auth-api";
 import { runAccountHealthPass } from "../freenet/account-heal";
-import { runOwnerReposProvisionPass, ensureOwnerProvisionTipListener } from "../freenet/hub-repo";
+import { runOwnerReposProvisionPass, ensureOwnerProvisionTipListener } from "../freenet/forge-repo";
 import {
   ensureBackupTipPushListener,
   getBackupPrefs,
@@ -30,7 +30,7 @@ export function RepoBackupWorker() {
   useEffect(() => {
     if (!isBrowserNativeMode()) return;
 
-    // NEW CODE - TESTING: tip push → backup refresh + HubRepoMeta ensure
+    // NEW CODE - TESTING: tip push → backup refresh + ForgeRepoMeta ensure
     // without waiting for 10m pass or for a specific page to be open.
     ensureBackupTipPushListener();
     ensureOwnerProvisionTipListener();
@@ -67,7 +67,7 @@ export function RepoBackupWorker() {
         if (ac.signal.aborted) return;
 
         // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-        // Missing HubRegistry / HubRepoMeta only got fixed when opening a repo page.
+        // Missing ForgeRegistry / ForgeRepoMeta only got fixed when opening a repo page.
         // NEW CODE - TESTING: provision all owned repos after login/restore here
         await runOwnerReposProvisionPass({ signal: ac.signal });
         if (ac.signal.aborted) return;
@@ -82,7 +82,7 @@ export function RepoBackupWorker() {
         }
       } catch (err) {
         if (!(err instanceof Error && err.message === "aborted")) {
-          console.warn("[freenet-hub] RepoBackupWorker pass failed", err);
+          console.warn("[freenet-forge] RepoBackupWorker pass failed", err);
         }
       } finally {
         runningRef.current = false;

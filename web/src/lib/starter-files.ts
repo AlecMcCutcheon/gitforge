@@ -1,6 +1,6 @@
 /** Starter file templates for empty-repo create flow (GitHub-like). */
 
-import { generateLicense } from "@freenet-hub/licensee";
+import { generateLicense } from "@gitforge/licensee";
 
 export type StarterKind = "readme" | "license" | "gitignore";
 
@@ -33,7 +33,7 @@ export function licenseTemplate(
 ): StarterFile {
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // Hard-coded MIT text…
-  // NEW CODE - TESTING: choosealicense generate via @freenet-hub/licensee
+  // NEW CODE - TESTING: choosealicense generate via @gitforge/licensee
   let content: string;
   try {
     content = generateLicense(key, {

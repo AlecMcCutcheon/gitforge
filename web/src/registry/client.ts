@@ -1,27 +1,27 @@
 /**
- * HubRegistry client facade.
+ * ForgeRegistry client facade.
  *
  * Bridge mode: HTTP `/api/registry*` (local-bundle attestation).
- * Website / browser-native: HubRegistry contract over Freenet WS.
+ * Website / browser-native: ForgeRegistry contract over Freenet WS.
  */
 
-import { api, type HubRegistration, type PersonResponse } from "../api";
+import { api, type ForgeRegistration, type PersonResponse } from "../api";
 import { isBrowserNativeMode } from "../tip-browse";
 import {
   personDisplayFallback,
   resolvePersonDisplayName,
 } from "../freenet/person-display";
-import { fetchHubRegistry } from "../freenet/hub-registry";
+import { fetchForgeRegistry } from "../freenet/forge-registry";
 import { nativeRegisterRepo, nativeUnregisterRepo } from "../freenet/owner-api";
 
 export async function listDiscoverRegistry(): Promise<{
-  repos: HubRegistration[];
+  repos: ForgeRegistration[];
   note?: string;
   source: "bridge" | "contract" | "unavailable";
 }> {
   if (isBrowserNativeMode()) {
     const { loadRegistryCached } = await import("../freenet/discover-cache");
-    const repos = await loadRegistryCached(() => fetchHubRegistry());
+    const repos = await loadRegistryCached(() => fetchForgeRegistry());
     return { repos, source: "contract" };
   }
   const data = await api.registry();
@@ -34,10 +34,10 @@ export async function listDiscoverRegistry(): Promise<{
 
 export async function lookupRegistration(
   prefix: string,
-): Promise<HubRegistration | null> {
+): Promise<ForgeRegistration | null> {
   if (isBrowserNativeMode()) {
     const { loadRegistryCached } = await import("../freenet/discover-cache");
-    const repos = await loadRegistryCached(() => fetchHubRegistry());
+    const repos = await loadRegistryCached(() => fetchForgeRegistry());
     return repos.find((r) => r.repo_prefix === prefix) ?? null;
   }
   try {
@@ -52,11 +52,11 @@ export async function loadPerson(
 ): Promise<PersonResponse> {
   if (isBrowserNativeMode()) {
     // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-    // displayName from mine[0]?.identity_name (stale HubRegistry username)
-    // NEW CODE - TESTING: HubProfile username by fingerprint
+    // displayName from mine[0]?.identity_name (stale ForgeRegistry username)
+    // NEW CODE - TESTING: ForgeProfile username by fingerprint
     const { peekCachedRegistry, loadRegistryCached, storeCachedRegistry } =
       await import("../freenet/discover-cache");
-    const stub = async (repos: HubRegistration[]): Promise<PersonResponse> => {
+    const stub = async (repos: ForgeRegistration[]): Promise<PersonResponse> => {
       const mine = repos.filter(
         (r) =>
           r.identity_fingerprint.toLowerCase() === fingerprint.toLowerCase(),
@@ -69,18 +69,18 @@ export async function loadPerson(
         displayName,
         email: mine[0]?.identity_email ?? null,
         repos: mine,
-        note: "From HubRegistry contract (filter by identity_fingerprint).",
+        note: "From ForgeRegistry contract (filter by identity_fingerprint).",
       };
     };
     const cached = peekCachedRegistry();
     if (cached) {
-      void loadRegistryCached(() => fetchHubRegistry()).catch(() => undefined);
+      void loadRegistryCached(() => fetchForgeRegistry()).catch(() => undefined);
       return stub(cached);
     }
     try {
       const fresh = await Promise.race([
-        loadRegistryCached(() => fetchHubRegistry()),
-        new Promise<HubRegistration[]>((resolve) =>
+        loadRegistryCached(() => fetchForgeRegistry()),
+        new Promise<ForgeRegistration[]>((resolve) =>
           setTimeout(() => resolve([]), 10_000),
         ),
       ]);
@@ -98,7 +98,7 @@ export async function registerOwnedRepo(input: {
   label: string;
   name?: string;
   description?: string;
-}): Promise<HubRegistration> {
+}): Promise<ForgeRegistration> {
   if (isBrowserNativeMode()) {
     return nativeRegisterRepo(input);
   }

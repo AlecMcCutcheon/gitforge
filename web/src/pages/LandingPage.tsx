@@ -4,6 +4,7 @@ import { Link } from "../spa-link";
 import { repoHref, repoPathDisplay } from "../lib/repo-path";
 import { BrandLogo } from "../components/BrandLogo";
 import { EMBEDDED_DEMOS } from "../demos";
+import { brand, registryLabel } from "../lib/brand";
 import { useDocumentTitle } from "../lib/document-title";
 
 function hubPathFromUrl(url: string): { prefix: string; label: string } | null {
@@ -39,7 +40,7 @@ export function LandingPage() {
         <div className="landing-hero__inner">
           <p className="landing-kicker">
             <BrandLogo size={28} className="brand-logo" />
-            GitAtlas
+            {brand.displayName}
           </p>
           <p className="landing-badge muted">Unofficial community project</p>
           <h1 className="landing-title">
@@ -47,7 +48,7 @@ export function LandingPage() {
           </h1>
           <p className="landing-lede">
             Built on <span className="mono">freenet-git</span>: browse tip packs
-            in the browser, list repos on HubRegistry, star what you care about,
+            in the browser, list repos on ForgeRegistry, star what you care about,
             and keep identities on your Freenet node — not a central account
             server. This is an early, unofficial layer while it matures alongside
             the upstream tooling.
@@ -97,8 +98,8 @@ export function LandingPage() {
           <h2>Find repos on the network</h2>
           <p>
             Curated Freenet mirrors stay easy to open. Repos you register on
-            HubRegistry show up for everyone. Stars are signed on Freenet
-            (HubStars), not a private server scoreboard.
+            ForgeRegistry show up for everyone. Stars are signed on Freenet
+            (ForgeStars), not a private server scoreboard.
           </p>
         </article>
         <article className="landing-feature">
@@ -114,7 +115,7 @@ export function LandingPage() {
       <section className="landing-repos panel">
         <h2>Repos on Freenet</h2>
         <p className="lede">
-          Public mirrors you can open in GitAtlas right away (same{" "}
+          Public mirrors you can open in {brand.displayName} right away (same{" "}
           <span className="mono">freenet::</span> addresses you clone from a
           terminal).
         </p>
@@ -140,7 +141,7 @@ export function LandingPage() {
         </ul>
         <p className="muted tiny">
           After you sign in, the logo opens the home page — curated repos plus
-          everything on GitAtlasRegistry (GAR).
+          everything on {registryLabel()}.
         </p>
       </section>
     </main>

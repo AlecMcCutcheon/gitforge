@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "../spa-link";
-import { api, type HubRegistration } from "../api";
+import { api, type ForgeRegistration } from "../api";
 import {
   currentIdentity,
   getCachedIdentity,
   onAuthSessionChange,
 } from "../freenet/auth-api";
-import type { HubIdentityInfo } from "../freenet/owner-api";
+import type { ForgeIdentityInfo } from "../freenet/owner-api";
 import { PageLoadingOverlay } from "../components/PageLoadingOverlay";
 import { repoHref } from "../lib/repo-path";
+import { registryLabel } from "../lib/brand";
 import { isBrowserNativeMode } from "../tip-browse";
 import { useDocumentTitle } from "../lib/document-title";
 
@@ -55,15 +56,15 @@ async function loadLocalRepoKeys(): Promise<
   return parseWhoamiStdout(id.stdout)?.repos ?? [];
 }
 
-async function loadRegistryRepos(): Promise<HubRegistration[]> {
+async function loadRegistryRepos(): Promise<ForgeRegistration[]> {
   if (isBrowserNativeMode()) {
     const { loadRegistryCached, peekCachedRegistry } = await import(
       "../freenet/discover-cache"
     );
-    const { fetchHubRegistry } = await import("../freenet/hub-registry");
+    const { fetchForgeRegistry } = await import("../freenet/forge-registry");
     const warm = peekCachedRegistry();
     if (warm) return warm;
-    return loadRegistryCached(() => fetchHubRegistry()).catch(() => []);
+    return loadRegistryCached(() => fetchForgeRegistry()).catch(() => []);
   }
   try {
     const reg = await api.registry();
@@ -108,7 +109,7 @@ async function repoContractFound(
 
 /**
  * Scan identity keys: only repos that exist on Freenet, you can write, and
- * are not yet on HubRegistry.
+ * are not yet on ForgeRegistry.
  */
 async function scanImportableRepos(): Promise<ImportableRepo[]> {
   const [local, registry] = await Promise.all([
@@ -128,7 +129,7 @@ async function scanImportableRepos(): Promise<ImportableRepo[]> {
         detail: [
           probe.detail,
           "Your identity holds the repo owner key (can register / push).",
-          "Not yet on GitAtlasRegistry (GAR).",
+          `Not yet on ${registryLabel()}.`,
         ].join(" "),
         prefix: r.prefix,
         label: r.label,
@@ -149,14 +150,14 @@ async function scanImportableRepos(): Promise<ImportableRepo[]> {
 }
 
 /**
- * Import / register an existing freenet-git repo onto GitAtlasRegistry (GAR).
+ * Import / register an existing freenet-git repo onto GitForge Registry (GFR).
  * Does not clone or re-create the contract — only dual-sig listing.
  */
 export function ImportRepoPage() {
   useDocumentTitle("Import repository");
   const websiteMode = isBrowserNativeMode();
   const navigate = useNavigate();
-  const [identity, setIdentity] = useState<HubIdentityInfo | null>(() =>
+  const [identity, setIdentity] = useState<ForgeIdentityInfo | null>(() =>
     getCachedIdentity(),
   );
   const [sessionReady, setSessionReady] = useState(false);
@@ -238,7 +239,7 @@ export function ImportRepoPage() {
       return;
     }
     setVerify(hit.verify);
-    setNote("Checks passed — you can register on GitAtlasRegistry (GAR).");
+    setNote(`Checks passed — you can register on ${registryLabel()}.`);
   };
 
   const onRegister = async () => {
@@ -294,7 +295,7 @@ export function ImportRepoPage() {
         <h1>Import repository</h1>
         <p className="muted">
           Register an existing freenet-git repo from your identity onto
-          GitAtlasRegistry (GAR). Only unregistered repos you can write to are
+          {registryLabel()}. Only unregistered repos you can write to are
           listed below.
         </p>
       </header>
@@ -343,7 +344,7 @@ export function ImportRepoPage() {
               </select>
               <span className="muted tiny">
                 Pre-checked: Freenet contract found, you hold the key, and not
-                yet on HubRegistry.
+                yet on ForgeRegistry.
               </span>
             </label>
           </div>
@@ -389,8 +390,8 @@ export function ImportRepoPage() {
                     : "·"}
                 </span>
                 {verify?.alreadyRegistered
-                  ? "Already on GitAtlasRegistry (GAR)"
-                  : "Not yet on GitAtlasRegistry (GAR)"}
+                  ? `Already on ${registryLabel()}`
+                  : `Not yet on ${registryLabel()}`}
               </li>
             </ul>
             {verify ? (
@@ -410,7 +411,7 @@ export function ImportRepoPage() {
             >
               {registerBusy
                 ? "Registering…"
-                : "Register on GitAtlasRegistry (GAR)"}
+                : `Register on ${registryLabel()}`}
             </button>
             <p className="muted tiny">
               Prefer creating from scratch?{" "}

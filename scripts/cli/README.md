@@ -1,84 +1,72 @@
-# GitAtlas vault CLI
+# GitForge CLI (`gitforge`)
 
-Push/pull freenet-git identity bundles ↔ **HubVault** (schema v4) using a scoped
-API key. Signing uses the per-key **ops** key — not the identity seed — and does
-not call `ImportIdentity` unless you pass `--import-local-delegate`.
+One entry point, same idea as `freenet-git` (subcommands under a single binary).
 
-## Prerequisites
+```text
+gitforge vault …   # ForgeVault via scoped API key
+gitforge repo  …   # Registry / RepoState via identity bundle
+```
 
-1. Enable **Vault backup** in GitAtlas.
-2. **Settings → API keys → Mint** (copy `gatk_…` and vault id).
-3. Scope includes `repos` (default).
+(`gitatlas` is a deprecated shim that forwards to `gitforge`.)
 
-## Push (bundle → vault)
+## Install
 
-After `freenet-git create`:
+From `freenet-gitforge` root:
 
 ```sh
-cd freenet-gitatlas
-npm run gitatlas-vault -- sync-bundle \
+npm run install:cli    # npm link → `gitforge` on PATH
+# or without linking:
+npm run gitforge -- help
+```
+
+Requires Node and a reachable Freenet node for Freenet ops.
+
+## Vault (API key)
+
+```sh
+gitforge vault sync-bundle \
   --api-key "$GATK" \
-  --bundle ~/path/to/git-identity-….bundle \
+  --bundle ~/path/to/git-identity.bundle \
+  --bundle-passphrase '…'
+
+gitforge vault pull-bundle \
+  --api-key "$GATK" \
+  --bundle ~/path/to/git-identity.bundle \
   --bundle-passphrase '…'
 ```
 
-Own node (also update local delegate):
+Mint API keys in Settings → API keys with the **repos** scope.
+
+## Repo (identity bundle)
 
 ```sh
-npm run gitatlas-vault -- sync-bundle … --import-local-delegate
-```
-
-## Pull (vault → bundle)
-
-```sh
-npm run gitatlas-vault -- pull-bundle \
-  --api-key "$GATK" \
-  --bundle ~/path/to/git-identity-….bundle \
-  --bundle-passphrase '…' \
-  [--out ~/path/to/updated.bundle]
-```
-
-Default `--out` overwrites `--bundle`. Vault repo keys are merged into the
-bundle (vault wins on secret mismatch). Optional `--import-local-delegate`.
-
-## Browser sync rules
-
-- **Vault & sync → Repo keys: vault ↔ this node** — check drift; Push / Pull to
-  resolve.
-- **Vault & sync → Sync CLI repos** — merges bundle into the delegate. Auto-updates
-  HubVault **only if** vault and this node were already **in sync** before the
-  merge. If they were out of sync, the delegate still updates; resolve conflicts
-  under Repo keys first.
-
-## Security
-
-- API key unlocks repos DEK + ops signer only.
-- Opening a full `.bundle` still exposes the seed on the CLI machine.
-- Revoke leaked keys in Settings. Password changes do not revoke API keys.
-
----
-
-# GitAtlas repo CLI (`gitatlas-repo`)
-
-Owner ops against **RepoState + HubRegistry** (and ensures **HubRepoMeta** where
-needed). These need dual-sig / repo-owner signing, so the CLI opens your
-identity **bundle** and imports into the local hub-identity delegate — vault
-API keys alone cannot SignRegister / SignRepoDescription.
-
-```sh
-npm run gitatlas-repo -- about \
+gitforge repo about \
   --bundle ~/path/to/git-identity.bundle \
   --bundle-passphrase '…' \
   --prefix 7FMQGtHpkidg \
-  --label gitatlas \
-  --description 'Git forge for Freenet — tip-pack browse without a central server.' \
-  --website 'http://127.0.0.1:7509/v1/contract/web/…/' \
-  --topics freenet,git,freenet-git
+  --label gitforge \
+  --description 'Git forge for Freenet — tip-pack browse without a central server.'
 
-npm run gitatlas-repo -- register --bundle … --prefix … --label …
-npm run gitatlas-repo -- unregister --bundle … --prefix …
-npm run gitatlas-repo -- rename --bundle … --prefix … --name NewName
-npm run gitatlas-repo -- delete --bundle … --prefix …   # soft-delete + unregister
+gitforge repo register --bundle … --prefix … --label …
+gitforge repo unregister --bundle … --prefix …
+gitforge repo rename --bundle … --prefix … --name NewName
+gitforge repo delete --bundle … --prefix …
 ```
 
-Omit `--website` / `--topics` on `about` to keep the live HubRegistry values.
+## API key scopes
+
+| Scope | Envelope |
+| --- | --- |
+| `repos` | Repo keys (CLI vault sync) |
+| `pages` | Pages website signing keys |
+| `settings` | Settings / Protect prefs |
+
+Discover register / about / rename need `gitforge repo … --bundle`.
+
+## How freenet-git builds its CLI
+
+`freenet-git` is a Cargo binary with `clap` subcommands. GitForge stays on
+TypeScript so it can reuse the web vault/crypto modules; `npm` `bin` + `tsx`
+is the install path until a native binary is warranted.
+
+See also [`docs/14-cli-vault-sync.md`](../../docs/14-cli-vault-sync.md).

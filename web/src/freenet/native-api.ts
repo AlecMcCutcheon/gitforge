@@ -11,7 +11,7 @@ import {
   parseGitattributes,
   pathDetectionNeedsContent,
   type LanguageBreakdown,
-} from "@freenet-hub/linguist";
+} from "@gitforge/linguist";
 import type {
   BlobResponse,
   BranchesResponse,
@@ -341,7 +341,7 @@ export async function nativeLanguageStats(
     opts?.onPartial?.(pathPass.result);
   }
   console.info(
-    `[freenet-hub] language stats path-pass ${pathPass.blobCount} blobs ${(performance.now() - t0).toFixed(0)}ms`,
+    `[freenet-forge] language stats path-pass ${pathPass.blobCount} blobs ${(performance.now() - t0).toFixed(0)}ms`,
   );
 
   if (tip.softFill) await tip.softFill;
@@ -352,7 +352,7 @@ export async function nativeLanguageStats(
   const t1 = performance.now();
   const full = await runPass(true);
   console.info(
-    `[freenet-hub] language stats content-pass ${full.blobCount} blobs (${full.withContent} with content) ${(performance.now() - t1).toFixed(0)}ms`,
+    `[freenet-forge] language stats content-pass ${full.blobCount} blobs (${full.withContent} with content) ${(performance.now() - t1).toFixed(0)}ms`,
   );
   return full.result;
 }
@@ -589,7 +589,7 @@ export async function nativeBranches(
       tipByBranch.set(name, tip);
       return tip;
     } catch (err) {
-      console.warn(`[freenet-hub] branch tip ${name} unavailable`, err);
+      console.warn(`[freenet-forge] branch tip ${name} unavailable`, err);
       return null;
     }
   };

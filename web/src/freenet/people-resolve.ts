@@ -2,7 +2,7 @@
  * Resolve a people URL / search token to a canonical `freenet:id:…` fingerprint.
  *
  * Word slugs are one-way from the fingerprint, so reverse lookup scans known
- * fingerprints (session identity, local index, HubRegistry, HubStars).
+ * fingerprints (session identity, local index, ForgeRegistry, ForgeStars).
  */
 import { currentIdentity, getCachedIdentity } from "./auth-api";
 import {
@@ -19,8 +19,8 @@ import {
   peekCachedStars,
   storeCachedRegistry,
 } from "./discover-cache";
-import { fetchHubRegistry } from "./hub-registry";
-import { fetchHubStars } from "./hub-stars";
+import { fetchForgeRegistry } from "./forge-registry";
+import { fetchForgeStars } from "./forge-stars";
 import { isBrowserNativeMode } from "../tip-browse";
 import { api } from "../api";
 
@@ -34,7 +34,7 @@ async function withTimeout<T>(
   ]);
 }
 
-const LOCAL_INDEX_KEY = "gitatlas.people-fp-index.v1";
+const LOCAL_INDEX_KEY = "gitforge.people-fp-index.v1";
 
 /**
  * Freenet `__sandbox=1` denies localStorage (null origin). Keep a tab-lifetime
@@ -89,7 +89,7 @@ function fingerprintFromLocalSlug(slug: string): string | null {
 }
 
 async function knownFingerprints(opts?: {
-  /** Await HubRegistry/stars so word-only cold loads can resolve. */
+  /** Await ForgeRegistry/stars so word-only cold loads can resolve. */
   network?: boolean;
 }): Promise<string[]> {
   const out = new Set<string>();
@@ -132,13 +132,13 @@ async function knownFingerprints(opts?: {
 
   const pullNetwork = async () => {
     if (isBrowserNativeMode()) {
-      const reg = await withTimeout(fetchHubRegistry(), 10_000);
+      const reg = await withTimeout(fetchForgeRegistry(), 10_000);
       if (reg) {
         storeCachedRegistry(reg.repos);
         addRepos(reg.repos);
       }
       const stars = await withTimeout(
-        loadStarsCached(() => fetchHubStars()).then((state) => ({ state })),
+        loadStarsCached(() => fetchForgeStars()).then((state) => ({ state })),
         8_000,
       );
       if (stars?.state?.by_repo) addStars(stars.state.by_repo);
@@ -237,7 +237,7 @@ export async function resolvePersonRef(
   let candidates = await knownFingerprints();
   let hits = candidates.filter((fp) => wordsMatchFingerprint(fp, slug));
 
-  // Cold word-only URL: wait on HubRegistry/stars so registered identities resolve.
+  // Cold word-only URL: wait on ForgeRegistry/stars so registered identities resolve.
   if (hits.length === 0) {
     candidates = await knownFingerprints({ network: true });
     hits = candidates.filter((fp) => wordsMatchFingerprint(fp, slug));
@@ -257,6 +257,6 @@ export async function resolvePersonRef(
   return {
     ok: false,
     error:
-      "No known identity matches those fingerprint words yet. Sign in if this is you, open Discover first so HubRegistry can load, or use a freenet:id: URL.",
+      "No known identity matches those fingerprint words yet. Sign in if this is you, open Discover first so ForgeRegistry can load, or use a freenet:id: URL.",
   };
 }

@@ -1,4 +1,4 @@
-# GitAtlas – Agent / Contributor Guide
+# GitForge – Agent / Contributor Guide
 
 [CONTRIBUTING.md](CONTRIBUTING.md) is the authoritative contribution policy.
 In short:
@@ -15,10 +15,10 @@ When unsure which bucket a change is in, open an issue first.
 ## Project Layout
 
 ```
-gitatlas/
+gitforge/
 ├── web/                 # React SPA (primary product surface)
 ├── contracts/           # Hub WASM contracts (registry, vault, stars, …)
-├── delegates/           # hub-identity, hub-pages
+├── delegates/           # forge-identity, forge-pages
 ├── decode-wasm/         # browser RepoState / tip helpers
 ├── browse-tool/         # tip pack CLI helper
 ├── freenet-linguist/    # language detection for the sidebar
@@ -44,8 +44,8 @@ gitatlas/
 
 - Prefer Freenet **website-native** paths (`VITE_BROWSER_NATIVE` / published
   site). Do not reintroduce a required local Express API (`attic/` is retired).
-- Identity: freenet-git **bundle** is the credential; HubVault is a helper.
-- Do not gate node storage / retention on app hub-identity alone. Node-operator
+- Identity: freenet-git **bundle** is the credential; ForgeVault is a helper.
+- Do not gate node storage / retention on app forge-identity alone. Node-operator
   consent belongs on the Freenet shell / node, not “anyone who minted an
   identity in the SPA.”
 - Avoid committing generated `web/dist/`, `node_modules/`, or secrets.
@@ -85,7 +85,7 @@ Open the printed website URL and hard-refresh. See
 
 ## Related Docs
 
-- [`docs/05-freenethub-content-architecture.md`](docs/05-freenethub-content-architecture.md)
-- [`docs/06-hub-registry.md`](docs/06-hub-registry.md)
-- [`docs/10-hub-vault-auth.md`](docs/10-hub-vault-auth.md)
-- [`docs/11-hub-stars.md`](docs/11-hub-stars.md)
+- [`docs/05-gitforge-content-architecture.md`](docs/05-gitforge-content-architecture.md)
+- [`docs/06-forge-registry.md`](docs/06-forge-registry.md)
+- [`docs/10-forge-vault-auth.md`](docs/10-forge-vault-auth.md)
+- [`docs/11-forge-stars.md`](docs/11-forge-stars.md)

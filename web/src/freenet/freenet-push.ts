@@ -2,6 +2,7 @@
  * Browser Freenet tip push: encode pack → Put pack contract → SignPush → Put/Update tip.
  */
 import { blake3 } from "@noble/hashes/blake3";
+import { brand } from "../lib/brand";
 import { PACK_WASM_HASH_B58, REPO_WASM_HASH_B58 } from "./constants";
 import {
   bytesToHex,
@@ -142,7 +143,7 @@ export async function pushFilesToFreenet(input: {
     throw new Error("sign in before pushing");
   }
   const authorName =
-    (input.authorName ?? id.name ?? "GitAtlas").trim() || "GitAtlas";
+    (input.authorName ?? id.name ?? brand.displayName).trim() || brand.displayName;
   const authorEmail =
     (
       input.authorEmail ??
@@ -151,7 +152,7 @@ export async function pushFilesToFreenet(input: {
     ).trim() || "user@freenet";
   const message = input.description?.trim()
     ? `${input.subject.trim()}\n\n${input.description.trim()}`
-    : input.subject.trim() || "Add files via GitAtlas";
+    : input.subject.trim() || `Add files via ${brand.displayName}`;
 
   const { packBytes, tipHashHex } = packFirstCommit({
     files: input.files,
@@ -239,7 +240,7 @@ export async function pushFilesToFreenet(input: {
 
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // await updateContract(wrapDeltaUpdate(repoKey, delta), repoKey);
-  // hangs: stdlib "Request timeout" (~30s) — same as HubVault/HubRegistry.
+  // hangs: stdlib "Request timeout" (~30s) — same as ForgeVault/ForgeRegistry.
   // NEW CODE - TESTING: Put full merged RepoState; Update delta only as fallback
   try {
     const putReq = buildPutRequest(
@@ -282,7 +283,7 @@ export async function pushFilesToFreenet(input: {
   // ensureBackupTipPushListener();
   // void enqueueBackupRefreshAfterTipPush(input.prefix);
   const { ensureOwnerProvisionTipListener, enqueueOwnerRepoProvision } =
-    await import("./hub-repo");
+    await import("./forge-repo");
   ensureOwnerProvisionTipListener();
   enqueueOwnerRepoProvision(input.prefix);
 

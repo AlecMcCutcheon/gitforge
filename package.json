@@ -1,8 +1,12 @@
 {
-  "name": "freenet-gitatlas",
+  "name": "freenet-gitforge",
   "private": true,
   "version": "0.1.0",
   "description": "Git forge for Freenet — browse and publish freenet-git repos without a central server.",
+  "bin": {
+    "gitforge": "./scripts/cli/bin/gitforge",
+    "gitatlas": "./scripts/cli/bin/gitatlas"
+  },
   "workspaces": [
     "web",
     "freenet-linguist",
@@ -10,13 +14,18 @@
   ],
   "scripts": {
     "build:tip": "cargo build --release --manifest-path browse-tool/Cargo.toml",
-    "build:wasm": "npm run build:wasm -w @freenet-hub/web && npm run gen:hashes -w @freenet-hub/web",
-    "build:web": "npm run build -w @freenet-hub/web",
-    "build:website": "bash scripts/sync-website-key.sh && npm run build:wasm && VITE_BROWSER_NATIVE=1 npm run build -w @freenet-hub/web",
+    "build:wasm": "npm run build:wasm -w @gitforge/web && npm run gen:hashes -w @gitforge/web",
+    "build:web": "npm run build -w @gitforge/web",
+    "build:website": "bash scripts/sync-website-key.sh && npm run build:wasm && VITE_BROWSER_NATIVE=1 npm run build -w @gitforge/web",
     "publish:website": "npm run build:website && bash scripts/publish-website.sh",
-    "build:owner": "bash scripts/build-hub-owner-tools.sh",
-    "gitatlas-vault": "npx tsx scripts/cli/gitatlas-vault.ts",
-    "gitatlas-repo": "npx tsx scripts/cli/gitatlas-repo.ts"
+    "build:owner": "bash scripts/build-forge-owner-tools.sh",
+    "gitforge": "npx tsx scripts/cli/gitforge.ts",
+    "gitforge-vault": "npx tsx scripts/cli/gitforge.ts vault",
+    "gitforge-repo": "npx tsx scripts/cli/gitforge.ts repo",
+    "gitatlas": "npx tsx scripts/cli/gitforge.ts",
+    "gitforge-vault": "npx tsx scripts/cli/gitforge.ts vault",
+    "gitforge-repo": "npx tsx scripts/cli/gitforge.ts repo",
+    "install:cli": "npm link"
   },
   "license": "LGPL-3.0-only"
 }

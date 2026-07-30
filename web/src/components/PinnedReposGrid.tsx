@@ -4,6 +4,7 @@
  */
 import { useRef, useState, type DragEvent } from "react";
 import { Link } from "../spa-link";
+import { brand } from "../lib/brand";
 import { repoHref, repoPathDisplay } from "../lib/repo-path";
 
 export interface PinnedRepoCard {
@@ -12,7 +13,7 @@ export interface PinnedRepoCard {
   name: string | null;
   description: string | null;
   ownerFingerprint: string | null;
-  /** HubRegistry primary language cache; omit when unknown. */
+  /** ForgeRegistry primary language cache; omit when unknown. */
   language: string | null;
   languageColor: string | null;
   starCount: number;
@@ -166,8 +167,8 @@ export function PinnedReposGrid({
                   className="gh-badge pinned-card-vis"
                   title={
                     c.registration === "registered"
-                      ? "Listed on GitAtlasRegistry"
-                      : "Not on HubRegistry"
+                      ? `Listed on ${brand.registryName}`
+                      : "Not on ForgeRegistry"
                   }
                 >
                   {c.registration === "registered" ? "Public" : "Unlisted"}

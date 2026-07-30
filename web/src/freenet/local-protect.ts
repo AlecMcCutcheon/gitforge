@@ -7,7 +7,12 @@
  * Apps must not bare-Protect; membership expansion is app-side.
  */
 
-import { GITATLAS_WEBSITE_CONTRACT_KEY } from "./website-constants";
+import { FORGE_WEBSITE_CONTRACT_KEY } from "./website-constants";
+import {
+  protectIdentityGrantId,
+  protectLegacyGrantId,
+  protectRepoGrantId,
+} from "../lib/brand";
 
 export interface LocalProtectFeature {
   api_version: number;
@@ -104,7 +109,7 @@ function nodeHttpOrigin(): string {
 }
 
 function appContractKey(): string {
-  return GITATLAS_WEBSITE_CONTRACT_KEY;
+  return FORGE_WEBSITE_CONTRACT_KEY;
 }
 
 let featuresCache: FeaturesResponse | null | undefined;
@@ -299,11 +304,11 @@ async function readProtectError(res: Response): Promise<ProtectOpResult> {
 export function identityGrantId(
   area: "profile" | "vault" | "website",
 ): string {
-  return `gitatlas:identity:${area}`;
+  return protectIdentityGrantId(area);
 }
 
 export function repoGrantId(prefix: string): string {
-  return `gitatlas:repo:${prefix}`;
+  return protectRepoGrantId(prefix);
 }
 
 export function findScope(
@@ -398,7 +403,7 @@ export async function syncScope(
 /** @deprecated Apps must use createScope / syncScope — bare protect is admin-only. */
 export async function protectContract(key: string): Promise<ProtectOpResult> {
   return createScope({
-    grantId: `gitatlas:legacy:${key}`,
+    grantId: protectLegacyGrantId(key),
     anchorKey: key,
     policy: { kind: "single" },
   });
@@ -439,8 +444,8 @@ export function grantAppCliHint(): string {
 }
 
 /**
- * Expand child contract keys from parent tipped-bundle summaries (GitAtlas recipe).
- * Parent field paths are declared in gitatlasTipPackMembership(); core never sees RepoState.
+ * Expand child contract keys from parent tipped-bundle summaries (GitForge recipe).
+ * Parent field paths are declared in gitforgeTipPackMembership(); core never sees RepoState.
  */
 export function tipPackKeysFromBundles(
   bundles: Array<{
@@ -470,8 +475,8 @@ export function tipPackKeysFromBundles(
   return keys;
 }
 
-/** GitAtlas instance of MembershipSpec — freenet-git parent state field paths. */
-export function gitatlasTipPackMembership(
+/** GitForge instance of MembershipSpec — freenet-git parent state field paths. */
+export function gitforgeTipPackMembership(
   retention: TipRetention = "current",
   lastN = 3,
 ): MembershipSpec {
@@ -511,7 +516,7 @@ export async function ensureRepoScopeAndSync(opts: {
     anchorKey: opts.repoContractKey,
     policy: {
       kind: "anchor_plus_members",
-      member_hint: gitatlasTipPackMembership(retention, lastN),
+      member_hint: gitforgeTipPackMembership(retention, lastN),
     },
     protectAnchor: true,
     desiredKeys: opts.tipPackKeys,
@@ -528,7 +533,7 @@ export async function ensureRepoScopeAndSync(opts: {
       anchor_key: opts.repoContractKey,
       policy: {
         kind: "anchor_plus_members",
-        member_hint: gitatlasTipPackMembership(retention, lastN),
+        member_hint: gitforgeTipPackMembership(retention, lastN),
       },
       label: opts.prefix,
     });

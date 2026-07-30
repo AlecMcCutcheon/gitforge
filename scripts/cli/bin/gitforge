@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Proper PATH entry for `gitforge` (npm link / npm i -g).
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+exec npx --yes tsx "${ROOT}/scripts/cli/gitforge.ts" "$@"

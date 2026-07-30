@@ -1,6 +1,6 @@
 /**
  * Public Pages metadata stored on RepoState extension key `pages` (UTF-8 JSON).
- * Matches docs/09-hub-pages.md.
+ * Matches docs/09-forge-pages.md.
  */
 
 export const REPO_PAGES_EXTENSION_KEY = "pages";
@@ -13,7 +13,7 @@ export interface RepoPagesMeta {
   last_commit: string | null;
   updated_at: string | null;
   verifying_key_hex?: string | null;
-  /** GitAtlas identity fingerprint that enabled Pages (registry owner). */
+  /** GitForge identity fingerprint that enabled Pages (registry owner). */
   identity_fingerprint?: string | null;
 }
 
@@ -93,7 +93,7 @@ export function serializeRepoPagesMeta(meta: RepoPagesMeta): string {
 
 /** Local-only autoSync preference (not on RepoState). */
 export function pagesAutoSyncStorageKey(prefix: string): string {
-  return `gitatlas.pages.autosync.${prefix}`;
+  return `gitforge.pages.autosync.${prefix}`;
 }
 
 export function loadPagesAutoSync(prefix: string, fallback = true): boolean {
@@ -118,7 +118,7 @@ export function savePagesAutoSync(prefix: string, autoSync: boolean): void {
 }
 
 function pagesMetaStorageKey(prefix: string): string {
-  return `gitatlas.pages.meta.${prefix}`;
+  return `gitforge.pages.meta.${prefix}`;
 }
 
 /** Local mirror of RepoState pages (fallback until decode-wasm exposes `pages`). */
@@ -141,7 +141,7 @@ export function loadPagesMetaLocal(prefix: string): RepoPagesMeta | null {
 
 export function websiteKeyNameFor(prefix: string): string {
   const safe = prefix.replace(/[^A-Za-z0-9._-]+/g, "").slice(0, 24) || "repo";
-  return `hub-pages-${safe}`;
+  return `forge-pages-${safe}`;
 }
 
 export function pagesSiteUrl(contractKey: string): string {

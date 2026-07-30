@@ -38,14 +38,14 @@ import {
   listRegistry,
   registerRepo,
   unregisterRepo,
-} from "./hub-registry.js";
+} from "./forge-registry.js";
 import {
   disablePages,
   enablePages,
   getPages,
   maybeAutoSyncPages,
   syncPages,
-} from "./hub-pages.js";
+} from "./forge-pages.js";
 import { DEMO_REPOS, parseFreenetUrl } from "./urls.js";
 
 function errorPayload(err: unknown) {
@@ -77,7 +77,7 @@ function errorPayload(err: unknown) {
 }
 
 const app = express();
-const port = Number(process.env.FREENET_HUB_PORT ?? 8787);
+const port = Number(process.env.GITFORGE_PORT ?? 8787);
 
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
@@ -182,7 +182,7 @@ app.post("/api/repos/create", async (req, res) => {
     // OLD CODE - KEEP UNTIL CONFIRMED WORKING
     // const result = await createRepo({ name, description });
     // res.status(result.ok ? 200 : 500).json(result);
-    // NEW CODE - TESTING: freenet-git create, then HubRegistry register
+    // NEW CODE - TESTING: freenet-git create, then ForgeRegistry register
     const result = await createRepo({ name, description });
     if (!result.ok) {
       res.status(500).json(result);
@@ -502,7 +502,7 @@ app.get("/api/registry", async (_req, res) => {
   try {
     res.json({
       repos: await listRegistry(),
-      note: "Bridge HubRegistry (local-bundle attestation). Dual-sig Freenet contract comes later.",
+      note: "Bridge ForgeRegistry (local-bundle attestation). Dual-sig Freenet contract comes later.",
     });
   } catch (err) {
     res.status(500).json(errorPayload(err));
@@ -622,6 +622,6 @@ app.get("/api/repos/:id/tree", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`GitAtlas API listening on http://127.0.0.1:${port}`);
+  console.log(`GitForge API listening on http://127.0.0.1:${port}`);
   console.log(`Cache: ${cacheRoot()}`);
 });

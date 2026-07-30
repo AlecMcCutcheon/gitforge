@@ -1,4 +1,4 @@
-# GitAtlas Pages (Freenet-native)
+# GitForge Pages (Freenet-native)
 
 Deploy a Freenet **website contract** from a freenet-git tip branch. This is a
 Hub product feature (like GitHub Pages), not part of git itself.
@@ -7,9 +7,9 @@ Hub product feature (like GitHub Pages), not part of git itself.
 
 Enable / Sync / Disable require **all** of:
 
-1. Signed-in GitAtlas **identity** (hub-identity)
+1. Signed-in GitForge **identity** (forge-identity)
 2. Repo **site key** present on that identity
-3. Live **HubRegistry** listing for the prefix owned by that identity
+3. Live **ForgeRegistry** listing for the prefix owned by that identity
    (`identity_fingerprint` match — same gate as Danger Zone unregister/delete)
 
 Visitors can still **Open site** when Pages is enabled (public `pages` meta +
@@ -17,23 +17,23 @@ contract key). They cannot mutate.
 
 **Unregister** and **soft-delete** always run Pages take-down first when
 enabled (Disable + optional tombstone website update). You cannot leave
-Discover while a GitAtlas Pages site is still live for that repo.
+Discover while a GitForge Pages site is still live for that repo.
 
 **Signing keys** live in **pages-delegate** (node secrets). They are sealed into
-HubVault envelope `pages` (ciphertext public, DEK under `identity_dek_wrap`) so
+ForgeVault envelope `pages` (ciphertext public, DEK under `identity_dek_wrap`) so
 they sync across nodes with Push/Pull — never cleartext on RepoState.
 ExportKeys on the pages-delegate feeds vault push; ImportKey restores on pull.
 
 ## Product path (website mode)
 
-GitAtlas manages Pages entirely in the browser:
+GitForge manages Pages entirely in the browser:
 
 1. Tip → site bytes (require `index.html` under optional `rootPath`)
-2. **pages-delegate** holds per-repo website signing keys (`hub-pages-<prefix>`),
+2. **pages-delegate** holds per-repo website signing keys (`forge-pages-<prefix>`),
    tied to the enabling identity via RepoState `pages.identity_fingerprint`
 3. SPA Puts / Updates the website container contract
 4. **RepoState `pages` extension** stores public metadata so any visitor can
-   Open site without HubRegistry
+   Open site without ForgeRegistry
 
 No Express Hub bridge and no `fdev website` for the product path.
 
@@ -62,18 +62,18 @@ UTF-8 JSON under extension key `pages`:
   "last_commit": "<40-hex>",
   "updated_at": "<ISO-8601>",
   "verifying_key_hex": "<64-hex ed25519 vk>",
-  "identity_fingerprint": "<GitAtlas identity that enabled Pages>"
+  "identity_fingerprint": "<GitForge identity that enabled Pages>"
 }
 ```
 
-Optional: mirror Freenet site URL into HubRegistry About `website` on enable
+Optional: mirror Freenet site URL into ForgeRegistry About `website` on enable
 for Discover.
 
 ## pages-delegate
 
-Local WASM (`delegates/hub-pages`):
+Local WASM (`delegates/forge-pages`):
 
-- `EnsureKey` — create/load signing key for `hub-pages-<prefix>`
+- `EnsureKey` — create/load signing key for `forge-pages-<prefix>`
 - `CompressAndSign` — xz-compress ustar tar, sign `version || archive`, return
   CBOR metadata + compressed archive + verifying key
 
@@ -82,10 +82,10 @@ params = verifying key bytes.
 
 ## Requirements
 
-- Freenet node up; pages-delegate + hub-identity published
+- Freenet node up; pages-delegate + forge-identity published
 - Tip branch (optional subdirectory) contains **`index.html`**
 - No Actions/CI — static tip tree only
-- Owner has the repo key in hub-identity
+- Owner has the repo key in forge-identity
 
 ## API (SPA)
 
@@ -107,6 +107,6 @@ installs only — no new investment.
 
 ## Legacy bridge
 
-[`server/src/hub-pages.ts`](../server/src/hub-pages.ts) + `fdev website` +
-`hub-pages.json` is deprecated for website mode. See phased delivery B4 in the
+[`server/src/forge-pages.ts`](../server/src/forge-pages.ts) + `fdev website` +
+`forge-pages.json` is deprecated for website mode. See phased delivery B4 in the
 Unregister + Pages plan.

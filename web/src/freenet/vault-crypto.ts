@@ -1,5 +1,5 @@
 /**
- * Client-side GitAtlas vault crypto (schema v4 — passwordless envelopes +
+ * Client-side GitForge vault crypto (schema v4 — passwordless envelopes +
  * identity-sealed DEK wrap for signed-in sync).
  * Vault address = blake3(domain ‖ seed), not email.
  */
@@ -13,19 +13,19 @@ import { wordlist } from "@scure/bip39/wordlists/english";
 import bs58 from "bs58";
 
 // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-// export const VAULT_PARAMS_PREFIX = "freenethub-vault-v1:";
-// const VAULT_ID_DOMAIN = ... freenethub-vault-v1
-// export const VAULT_SIGN_DOMAIN = ... freenethub.vault.v3
+// export const VAULT_PARAMS_PREFIX = "gitforge-vault-v1:";
+// const VAULT_ID_DOMAIN = ... gitforge-vault-v1
+// export const VAULT_SIGN_DOMAIN = ... gitforge.vault.v3
 // export const VAULT_SCHEMA_VERSION = 3;
-// NEW CODE - TESTING: GitAtlas passwordless vault v4 (+ pages envelope)
-export const VAULT_PARAMS_PREFIX = "gitatlas-vault-v1:";
-const VAULT_ID_DOMAIN = new TextEncoder().encode("gitatlas-vault-v1");
-/** v4 signing domain — must match hub-vault contract + SignVault delegate. */
-export const VAULT_SIGN_DOMAIN = new TextEncoder().encode("gitatlas.vault.v4\0");
+// NEW CODE - TESTING: GitForge passwordless vault v4 (+ pages envelope)
+export const VAULT_PARAMS_PREFIX = "gitforge-vault-v1:";
+const VAULT_ID_DOMAIN = new TextEncoder().encode("gitforge-vault-v1");
+/** v4 signing domain — must match forge-vault contract + SignVault delegate. */
+export const VAULT_SIGN_DOMAIN = new TextEncoder().encode("gitforge.vault.v4\0");
 export const VAULT_SCHEMA_VERSION = 4;
 /** Domain for blake3(identity_sk) → wrap key for identity_dek_wrap. */
 const IDENTITY_DEK_WRAP_DOMAIN = new TextEncoder().encode(
-  "gitatlas.vault.identity-dek-wrap-v1\0",
+  "gitforge.vault.identity-dek-wrap-v1\0",
 );
 export const ENVELOPE_REPOS = "repos";
 /** Sealed Pages website signing keys (ed25519 seeds per repo prefix). */
@@ -115,12 +115,12 @@ export interface ReposEnvelopePlaintext {
   repos: Record<string, { secret_hex: string; label: string }>;
 }
 
-/** Pages website signing keys sealed in HubVault `pages` envelope. */
+/** Pages website signing keys sealed in ForgeVault `pages` envelope. */
 export interface PagesEnvelopePlaintext {
   pages: Record<string, { secret_hex: string; label: string }>;
 }
 
-/** Private prefs / KV sealed in HubVault `settings` envelope. */
+/** Private prefs / KV sealed in ForgeVault `settings` envelope. */
 export interface SettingsEnvelopePlaintext {
   v: number;
   /** Local tip-pack backup auto options (Settings → Backups). */
@@ -163,7 +163,7 @@ export interface IdentityDekWrap {
   blob_b64: string;
 }
 
-export interface HubVaultPublicState {
+export interface ForgeVaultPublicState {
   schema_version: number;
   vault_id: string;
   envelopes: Record<string, VaultCipherJson>;
@@ -584,8 +584,8 @@ function pushU64Le(out: number[], value: number): void {
 }
 
 /**
- * GitAtlas vault v4 signing payload (owner or ops).
- * Must match hub-vault contract + SignVault delegate.
+ * GitForge vault v4 signing payload (owner or ops).
+ * Must match forge-vault contract + SignVault delegate.
  */
 export function buildVaultSigningPayload(input: {
   vault_id: string;
@@ -633,10 +633,10 @@ export function identityDekWrapSigningJson(wrap: IdentityDekWrap): string {
 
 // OLD CODE - KEEP UNTIL CONFIRMED WORKING
 // export function isVaultV2State(...)
-/** True when state matches current GitAtlas vault schema (v4). */
+/** True when state matches current GitForge vault schema (v4). */
 export function isVaultV2State(
-  state: HubVaultPublicState | { schema_version?: number; cipher?: unknown },
-): state is HubVaultPublicState {
+  state: ForgeVaultPublicState | { schema_version?: number; cipher?: unknown },
+): state is ForgeVaultPublicState {
   return (
     state.schema_version === VAULT_SCHEMA_VERSION &&
     "envelopes" in state &&

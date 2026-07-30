@@ -1,23 +1,23 @@
 /**
- * Native owner tools: identity delegate + HubRegistry Update + empty repo Put.
+ * Native owner tools: identity delegate + ForgeRegistry Update + empty repo Put.
  */
 import { REPO_WASM_HASH_B58 } from "./constants";
 import {
-  HUB_IDENTITY_CODE_HASH_BYTES,
-  HUB_IDENTITY_KEY_BYTES,
-  hubOwnerContractsReady,
+  FORGE_IDENTITY_CODE_HASH_BYTES,
+  FORGE_IDENTITY_KEY_BYTES,
+  forgeOwnerContractsReady,
 } from "./owner-constants";
 import { sendDelegateMessage } from "./delegate-api";
 import {
-  addHubRegistryContributor,
-  addHubRegistryPendingInvite,
-  removeHubRegistryContributor,
-  removeHubRegistryEntry,
-  removeHubRegistryPendingInvite,
-  upsertHubRegistryEntry,
-  type HubRegistryContributorOp,
-  type HubRegistryPendingInviteOp,
-} from "./hub-registry";
+  addForgeRegistryContributor,
+  addForgeRegistryPendingInvite,
+  removeForgeRegistryContributor,
+  removeForgeRegistryEntry,
+  removeForgeRegistryPendingInvite,
+  upsertForgeRegistryEntry,
+  type ForgeRegistryContributorOp,
+  type ForgeRegistryPendingInviteOp,
+} from "./forge-registry";
 
 /** Owner-issued invite coupon (sealed with site key secret). */
 export interface ContributorInviteCoupon {
@@ -43,7 +43,7 @@ import {
   putContract,
   updateContract,
 } from "./ws";
-import type { HubRegistration } from "../api";
+import type { ForgeRegistration } from "../api";
 
 const RENAME_WRITE_TIMEOUT_MS = 45_000;
 
@@ -81,7 +81,7 @@ function hexDecode(hex: string): Uint8Array {
   return out;
 }
 
-export interface HubIdentityInfo {
+export interface ForgeIdentityInfo {
   fingerprint: string;
   name: string;
   email: string;
@@ -161,23 +161,23 @@ async function withDelegate(): Promise<{
   key: number[];
   codeHash: number[];
 }> {
-  if (!hubOwnerContractsReady()) {
+  if (!forgeOwnerContractsReady()) {
     throw new Error(
-      "Owner contracts not built — run scripts/build-hub-owner-tools.sh and republish the Hub website",
+      "Owner contracts not built — run scripts/build-forge-owner-tools.sh and republish the Hub website",
     );
   }
   const api = await getFreenetApi();
   return {
     api,
-    key: HUB_IDENTITY_KEY_BYTES,
-    codeHash: HUB_IDENTITY_CODE_HASH_BYTES,
+    key: FORGE_IDENTITY_KEY_BYTES,
+    codeHash: FORGE_IDENTITY_CODE_HASH_BYTES,
   };
 }
 
-export async function nativeGetIdentity(): Promise<HubIdentityInfo | null> {
+export async function nativeGetIdentity(): Promise<ForgeIdentityInfo | null> {
   const { api, key, codeHash } = await withDelegate();
   const pending = waitForDelegate<
-    HubIdentityInfo & { type: string; message?: string }
+    ForgeIdentityInfo & { type: string; message?: string }
   >(
     (p) => p.type === "Identity" || isNoIdentityError(p),
     12_000,
@@ -207,9 +207,9 @@ export async function nativeGetIdentity(): Promise<HubIdentityInfo | null> {
 export async function nativeCreateIdentity(
   name: string,
   email: string,
-): Promise<HubIdentityInfo> {
+): Promise<ForgeIdentityInfo> {
   const { api, key, codeHash } = await withDelegate();
-  const pending = waitForDelegate<HubIdentityInfo & { type: string }>(
+  const pending = waitForDelegate<ForgeIdentityInfo & { type: string }>(
     (p) => p.type === "Identity",
   );
   await sendDelegateMessage(api, key, codeHash, {
@@ -248,13 +248,13 @@ export async function nativeRegisterRepo(input: {
   website?: string | null;
   topics?: string[];
   public_meta?: Record<string, string>;
-}): Promise<HubRegistration> {
+}): Promise<ForgeRegistration> {
   const { api, key, codeHash } = await withDelegate();
   const n = nonce();
   const pending = waitForDelegate<{
     type: string;
     nonce: string;
-    entry: HubRegistration;
+    entry: ForgeRegistration;
     message?: string;
   }>(
     (p) =>
@@ -279,7 +279,7 @@ export async function nativeRegisterRepo(input: {
   if (signed.type === "Error" || !signed.entry) {
     throw new Error(signed.message ?? "register sign failed");
   }
-  await upsertHubRegistryEntry(signed.entry);
+  await upsertForgeRegistryEntry(signed.entry);
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // Callers invalidated the whole registry cache after register (race on navigate).
   // NEW CODE - TESTING: seed warm cache so repo page sees Registered immediately
@@ -289,17 +289,17 @@ export async function nativeRegisterRepo(input: {
   } catch {
     /* optional */
   }
-  // NEW CODE - TESTING: provision HubRepoMeta + seal_pk on register
+  // NEW CODE - TESTING: provision ForgeRepoMeta + seal_pk on register
   try {
-    const { ensureHubRepoMeta } = await import("./hub-repo");
-    await ensureHubRepoMeta(input.prefix);
+    const { ensureForgeRepoMeta } = await import("./forge-repo");
+    await ensureForgeRepoMeta(input.prefix);
   } catch (e) {
-    console.warn("[owner] register ok; HubRepoMeta ensure skipped:", e);
+    console.warn("[owner] register ok; ForgeRepoMeta ensure skipped:", e);
   }
   return signed.entry;
 }
 
-/** Soft-unregister from HubRegistry Discover (owner dual-sig). */
+/** Soft-unregister from ForgeRegistry Discover (owner dual-sig). */
 export async function nativeUnregisterRepo(input: {
   prefix: string;
   /** Must be greater than the live listing seq when present. */
@@ -351,20 +351,20 @@ export async function nativeUnregisterRepo(input: {
   if (signed.type === "Error") {
     throw new Error(signed.message ?? "unregister failed");
   }
-  await removeHubRegistryEntry(signed.op);
+  await removeForgeRegistryEntry(signed.op);
 }
 
-/** Dual-sign + write HubRegistry contributor grant (after site-key import). */
+/** Dual-sign + write ForgeRegistry contributor grant (after site-key import). */
 export async function nativeAddContributor(input: {
   prefix: string;
   seq?: number;
-}): Promise<HubRegistryContributorOp> {
+}): Promise<ForgeRegistryContributorOp> {
   const { api, key, codeHash } = await withDelegate();
   const n = nonce();
   const pending = waitForDelegate<{
     type: string;
     nonce: string;
-    entry: HubRegistryContributorOp;
+    entry: ForgeRegistryContributorOp;
     message?: string;
   }>(
     (p) =>
@@ -383,7 +383,7 @@ export async function nativeAddContributor(input: {
   if (signed.type === "Error" || !signed.entry) {
     throw new Error(signed.message ?? "contributor sign failed");
   }
-  await addHubRegistryContributor(signed.entry);
+  await addForgeRegistryContributor(signed.entry);
   return signed.entry;
 }
 
@@ -422,17 +422,17 @@ export async function nativeSignContributorInvite(input: {
 }
 
 /**
- * Invitee: identity-sign owner coupon + Put HubRegistry grant (before site key).
+ * Invitee: identity-sign owner coupon + Put ForgeRegistry grant (before site key).
  */
 export async function nativeAcceptContributorCoupon(
   coupon: ContributorInviteCoupon,
-): Promise<HubRegistryContributorOp> {
+): Promise<ForgeRegistryContributorOp> {
   const { api, key, codeHash } = await withDelegate();
   const n = nonce();
   const pending = waitForDelegate<{
     type: string;
     nonce: string;
-    entry?: HubRegistryContributorOp;
+    entry?: ForgeRegistryContributorOp;
     message?: string;
   }>(
     (p) =>
@@ -453,23 +453,23 @@ export async function nativeAcceptContributorCoupon(
   if (signed.type === "Error" || !signed.entry) {
     throw new Error(signed.message ?? "contributor coupon accept failed");
   }
-  await addHubRegistryContributor(signed.entry);
+  await addForgeRegistryContributor(signed.entry);
   return signed.entry;
 }
 
-/** Dual-sign + remove HubRegistry contributor grant (self-leave). */
+/** Dual-sign + remove ForgeRegistry contributor grant (self-leave). */
 export async function nativeRemoveContributor(input: {
   prefix: string;
   /** Defaults to signed-in identity (self-leave). */
   contributorFingerprint?: string;
   seq?: number;
-}): Promise<HubRegistryContributorOp> {
+}): Promise<ForgeRegistryContributorOp> {
   const { api, key, codeHash } = await withDelegate();
   const n = nonce();
   const pending = waitForDelegate<{
     type: string;
     nonce: string;
-    entry: HubRegistryContributorOp;
+    entry: ForgeRegistryContributorOp;
     message?: string;
   }>(
     (p) =>
@@ -489,22 +489,22 @@ export async function nativeRemoveContributor(input: {
   if (signed.type === "Error" || !signed.entry) {
     throw new Error(signed.message ?? "contributor remove sign failed");
   }
-  await removeHubRegistryContributor(signed.entry);
+  await removeForgeRegistryContributor(signed.entry);
   return signed.entry;
 }
 
-/** Owner: dual-sign + Put HubRegistry pending invite. */
+/** Owner: dual-sign + Put ForgeRegistry pending invite. */
 export async function nativeAddPendingInvite(input: {
   prefix: string;
   inviteeFingerprint: string;
   seq?: number;
-}): Promise<HubRegistryPendingInviteOp> {
+}): Promise<ForgeRegistryPendingInviteOp> {
   const { api, key, codeHash } = await withDelegate();
   const n = nonce();
   const pending = waitForDelegate<{
     type: string;
     nonce: string;
-    entry?: HubRegistryPendingInviteOp;
+    entry?: ForgeRegistryPendingInviteOp;
     message?: string;
   }>(
     (p) =>
@@ -524,7 +524,7 @@ export async function nativeAddPendingInvite(input: {
   if (signed.type === "Error" || !signed.entry) {
     throw new Error(signed.message ?? "pending invite add sign failed");
   }
-  await addHubRegistryPendingInvite(signed.entry);
+  await addForgeRegistryPendingInvite(signed.entry);
   return signed.entry;
 }
 
@@ -533,13 +533,13 @@ export async function nativeCancelPendingInvite(input: {
   prefix: string;
   inviteeFingerprint: string;
   seq?: number;
-}): Promise<HubRegistryPendingInviteOp> {
+}): Promise<ForgeRegistryPendingInviteOp> {
   const { api, key, codeHash } = await withDelegate();
   const n = nonce();
   const pending = waitForDelegate<{
     type: string;
     nonce: string;
-    entry?: HubRegistryPendingInviteOp;
+    entry?: ForgeRegistryPendingInviteOp;
     message?: string;
   }>(
     (p) =>
@@ -559,23 +559,23 @@ export async function nativeCancelPendingInvite(input: {
   if (signed.type === "Error" || !signed.entry) {
     throw new Error(signed.message ?? "pending invite cancel sign failed");
   }
-  await removeHubRegistryPendingInvite(signed.entry);
+  await removeForgeRegistryPendingInvite(signed.entry);
   return signed.entry;
 }
 
-/** Invitee: identity-sign decline + remove HubRegistry pending invite. */
+/** Invitee: identity-sign decline + remove ForgeRegistry pending invite. */
 export async function nativeDeclinePendingInvite(input: {
   prefix: string;
   inviteeFingerprint: string;
   repoOwnerVk: string;
   seq?: number;
-}): Promise<HubRegistryPendingInviteOp> {
+}): Promise<ForgeRegistryPendingInviteOp> {
   const { api, key, codeHash } = await withDelegate();
   const n = nonce();
   const pending = waitForDelegate<{
     type: string;
     nonce: string;
-    entry?: HubRegistryPendingInviteOp;
+    entry?: ForgeRegistryPendingInviteOp;
     message?: string;
   }>(
     (p) =>
@@ -596,11 +596,11 @@ export async function nativeDeclinePendingInvite(input: {
   if (signed.type === "Error" || !signed.entry) {
     throw new Error(signed.message ?? "pending invite decline sign failed");
   }
-  await removeHubRegistryPendingInvite(signed.entry);
+  await removeForgeRegistryPendingInvite(signed.entry);
   return signed.entry;
 }
 
-/** Sign HubProfile inbox append — proves sender holds this identity. */
+/** Sign ForgeProfile inbox append — proves sender holds this identity. */
 export async function nativeSignInboxAppend(input: {
   recipientFingerprint: string;
   id: string;
@@ -637,9 +637,9 @@ export async function nativeSignInboxAppend(input: {
 
 /**
  * Soft-delete: RepoState tombstone (deleted extension + [deleted] description)
- * then HubRegistry remove. Does not erase Freenet pack history.
- * After that is confirmed, drops the repo owner key from hub-identity.
- * If HubVault was already in_sync with the delegate, auto-pushes the reduced
+ * then ForgeRegistry remove. Does not erase Freenet pack history.
+ * After that is confirmed, drops the repo owner key from forge-identity.
+ * If ForgeVault was already in_sync with the delegate, auto-pushes the reduced
  * set; otherwise leaves vault for the user to sync in Settings.
  */
 export async function nativeSoftDeleteRepo(input: {
@@ -770,7 +770,7 @@ export async function nativeSoftDeleteRepo(input: {
   }
 
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-  // Soft-delete left the owner key in hub-identity (and vault untouched).
+  // Soft-delete left the owner key in forge-identity (and vault untouched).
   // NEW CODE - TESTING: drop key after confirmed soft-delete; vault push if in_sync
   await nativeRemoveRepoKey(input.prefix);
   if (syncBefore === "in_sync") {
@@ -840,7 +840,7 @@ export async function nativeRenameRepo(input: {
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // await updateContract(wrapDeltaUpdate(repoKey, delta), repoKey);
   // hangs: stdlib "Request timeout" (~30s)
-  // NEW CODE - TESTING: Put merged RepoState first (same as tip push / HubRegistry)
+  // NEW CODE - TESTING: Put merged RepoState first (same as tip push / ForgeRegistry)
   if (signed.state_hex) {
     try {
       // OLD CODE - KEEP UNTIL CONFIRMED WORKING
@@ -884,7 +884,7 @@ export async function nativeRenameRepo(input: {
       );
     }
   } else {
-    // Older hub-identity without state_hex — Update only
+    // Older forge-identity without state_hex — Update only
     await withWriteTimeout(
       updateContract(
         wrapDeltaUpdate(repoKey, hexDecode(signed.delta_hex)),
@@ -900,8 +900,8 @@ export async function nativeRenameRepo(input: {
     let website: string | null = null;
     let topics: string[] = [];
     try {
-      const { fetchHubRegistry } = await import("./hub-registry");
-      const { repos } = await fetchHubRegistry();
+      const { fetchForgeRegistry } = await import("./forge-registry");
+      const { repos } = await fetchForgeRegistry();
       const live = repos.find((r) => r.repo_prefix === input.prefix);
       website = live?.website ?? null;
       topics = live?.topics ?? [];
@@ -940,7 +940,7 @@ export async function nativeRenameRepo(input: {
 }
 
 /**
- * About edit: write RepoState.description, then HubRegistry upsert with
+ * About edit: write RepoState.description, then ForgeRegistry upsert with
  * description + website + topics (Discover mirror). Registry-owner SPA gate.
  */
 export async function nativeUpdateRepoAbout(input: {
@@ -952,7 +952,7 @@ export async function nativeUpdateRepoAbout(input: {
   topics?: string[];
 }): Promise<{
   description: string;
-  registration: HubRegistration;
+  registration: ForgeRegistration;
 }> {
   const desc = input.description.trim();
   if (desc.length > 350) {
@@ -1056,12 +1056,12 @@ export async function nativeUpdateRepoAbout(input: {
   let existingMeta: Record<string, string> = {};
   try {
     const { peekCachedRegistry } = await import("./discover-cache");
-    const { fetchHubRegistry } = await import("./hub-registry");
+    const { fetchForgeRegistry } = await import("./forge-registry");
     const hit =
       peekCachedRegistry()?.find((r) => r.repo_prefix === input.prefix) ??
       (
-        await fetchHubRegistry().catch(() => ({
-          repos: [] as HubRegistration[],
+        await fetchForgeRegistry().catch(() => ({
+          repos: [] as ForgeRegistration[],
         }))
       ).repos.find((r) => r.repo_prefix === input.prefix);
     existingMeta = hit?.public_meta ?? {};
@@ -1093,7 +1093,7 @@ export async function nativeUpdateRepoAbout(input: {
 export async function nativeCreateRepo(
   name: string,
   description?: string,
-): Promise<CreatedRepoResult & { registration?: HubRegistration }> {
+): Promise<CreatedRepoResult & { registration?: ForgeRegistration }> {
   // Capture vault↔delegate status before adding a local repo key.
   let syncBefore: string | null = null;
   try {
@@ -1158,7 +1158,7 @@ export async function nativeCreateRepo(
   );
   await putContract(req);
 
-  let registration: HubRegistration | undefined;
+  let registration: ForgeRegistration | undefined;
   try {
     registration = await nativeRegisterRepo({
       prefix: created.prefix,
@@ -1224,9 +1224,9 @@ export async function nativeImportIdentity(
   secretKeyHex: string,
   name: string,
   email: string,
-): Promise<HubIdentityInfo> {
+): Promise<ForgeIdentityInfo> {
   const { api, key, codeHash } = await withDelegate();
-  const pending = waitForDelegate<HubIdentityInfo & { type: string }>(
+  const pending = waitForDelegate<ForgeIdentityInfo & { type: string }>(
     (p) => p.type === "Identity",
   );
   await sendDelegateMessage(api, key, codeHash, {
@@ -1265,7 +1265,7 @@ export async function nativeImportRepoKey(
   return res.repos ?? [];
 }
 
-/** Drop a repo owner key from hub-identity (after soft-delete is confirmed). */
+/** Drop a repo owner key from forge-identity (after soft-delete is confirmed). */
 export async function nativeRemoveRepoKey(
   prefix: string,
 ): Promise<Array<{ prefix: string; label: string }>> {

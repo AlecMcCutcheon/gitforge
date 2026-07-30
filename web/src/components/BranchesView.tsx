@@ -151,7 +151,7 @@ function BranchTable({
                   </div>
                 </td>
                 <td>
-                  <span className="muted tiny" title="CI not available on GitAtlas">
+                  <span className="muted tiny" title="CI not available on GitForge">
                     —
                   </span>
                 </td>
@@ -159,7 +159,7 @@ function BranchTable({
                   <AheadBehind row={row} />
                 </td>
                 <td>
-                  <span className="muted tiny" title="Pull requests not available on GitAtlas">
+                  <span className="muted tiny" title="Pull requests not available on GitForge">
                     —
                   </span>
                 </td>

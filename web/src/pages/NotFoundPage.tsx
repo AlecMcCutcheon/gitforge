@@ -1,5 +1,6 @@
 import { Link } from "../spa-link";
 import type { ReactElement } from "react";
+import { brand } from "../lib/brand";
 import { useDocumentTitle } from "../lib/document-title";
 
 export type NotFoundKind = "page" | "repo" | "person";
@@ -17,7 +18,7 @@ const COPY: Record<
   page: {
     code: "404",
     title: "Page not found",
-    body: "That address is not a page in GitAtlas.",
+    body: `That address is not a page in ${brand.displayName}.`,
   },
   repo: {
     code: "404",
@@ -46,7 +47,7 @@ export function NotFoundPage({
       {detail ? <p className="mono muted tiny break">{detail}</p> : null}
       <p className="row">
         <Link to="/" className="btn">
-          Back to GitAtlas
+          Back to {brand.displayName}
         </Link>
       </p>
     </main>

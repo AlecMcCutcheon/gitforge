@@ -3,7 +3,7 @@
  *
  * Repo id is one segment `prefix~label` (slash broke nested Code/tree routes).
  * Owner scope:
- *   - HubRegistry owner known → `/{fingerprint-words}/{prefix~label}`
+ *   - ForgeRegistry owner known → `/{fingerprint-words}/{prefix~label}`
  *   - Unregistered / unknown  → `/r/{prefix~label}`
  *
  * freenet-git remotes stay `freenet::prefix/label`.
@@ -14,7 +14,7 @@ import {
 } from "../freenet/fingerprint-words";
 
 export const REPO_ID_SEP = "~" as const;
-/** Universal bucket when HubRegistry owner is unknown. */
+/** Universal bucket when ForgeRegistry owner is unknown. */
 export const UNREGISTERED_REPO_ROOT = "r" as const;
 
 const RESERVED_TOP = new Set([
@@ -55,7 +55,7 @@ export function isReservedHubTopSegment(segment: string): boolean {
 }
 
 export interface RepoHrefOpts {
-  /** HubRegistry owner fingerprint → words path. */
+  /** ForgeRegistry owner fingerprint → words path. */
   ownerFingerprint?: string | null;
   /** Already-resolved words slug (when fingerprint not on hand). */
   ownerSlug?: string | null;
@@ -190,7 +190,7 @@ export function parseRepoRouteParts(
  * Parse paste/search: `freenet::prefix/label`, `/r/prefix~label`,
  * `/words/prefix~label`, `/prefix/label`, or `/prefix~label`.
  */
-export function parseHubRepoRef(
+export function parseForgeRepoRef(
   input: string,
 ): { prefix: string; label: string; ownerFingerprint?: string } | null {
   const trimmed = input.trim();

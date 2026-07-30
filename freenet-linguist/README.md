@@ -1,6 +1,6 @@
 # freenet-linguist
 
-TypeScript language detection for GitAtlas / Freenet tip packs.
+TypeScript language detection for GitForge / Freenet tip packs.
 
 Full strategy funnel aligned with [github-linguist/linguist](https://github.com/github-linguist/linguist) `Linguist.detect` / `STRATEGIES`:
 
@@ -20,7 +20,7 @@ The classifier uses **go-enry’s Naive Bayes frequencies** trained on Linguist 
 
 ```bash
 git clone --depth 1 https://github.com/github-linguist/linguist.git freenet-linguist/_ref/linguist
-npm run gen:catalog -w @freenet-hub/linguist
+npm run gen:catalog -w @gitforge/linguist
 # when done referencing upstream:
 rm -rf freenet-linguist/_ref
 ```
@@ -30,7 +30,7 @@ rm -rf freenet-linguist/_ref
 ## Usage
 
 ```ts
-import { analyzeFilesAsync, parseGitattributes } from "@freenet-hub/linguist";
+import { analyzeFilesAsync, parseGitattributes } from "@gitforge/linguist";
 
 const breakdown = await analyzeFilesAsync(
   files.map((f) => ({ path: f.path, size: f.size, content: f.bytes })),

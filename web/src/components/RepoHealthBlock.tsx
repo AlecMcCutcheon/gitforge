@@ -19,13 +19,13 @@ import {
 
 // OLD CODE - KEEP UNTIL CONFIRMED WORKING
 // import { rescueTipPacks } from "../freenet/repo-health";
-// Rescue now restores packs + HubRegistry/HubRepoMeta from local backup when needed.
+// Rescue now restores packs + ForgeRegistry/ForgeRepoMeta from local backup when needed.
 
 export interface RepoHealthBlockProps {
   prefix: string;
   tipPackSize: number | null;
   tipLoadDone: boolean;
-  /** Soft-check HubRegistry listing when true. */
+  /** Soft-check ForgeRegistry listing when true. */
   registered: boolean;
 }
 
@@ -289,11 +289,11 @@ export function RepoHealthBlock({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tippedKey identity
   }, [prefix, tipLoadDone, tippedKey, registered]);
 
-  // NEW CODE - TESTING: refresh HubRepoMeta row after background provision succeeds
+  // NEW CODE - TESTING: refresh ForgeRepoMeta row after background provision succeeds
   useEffect(() => {
     let unsub: (() => void) | null = null;
     let cancelled = false;
-    void import("../freenet/hub-repo").then(({ onOwnerRepoProvisioned }) => {
+    void import("../freenet/forge-repo").then(({ onOwnerRepoProvisioned }) => {
       if (cancelled) return;
       unsub = onOwnerRepoProvisioned((detail) => {
         if (detail.prefix !== prefix || !detail.createdMeta) return;

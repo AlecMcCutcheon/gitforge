@@ -19,5 +19,5 @@ Reference: [Creating a default community health file](https://docs.github.com/en
 
 Within a directory, prefer `.md` then bare then `.txt` when multiple variants exist.
 
-License **identity** (MIT vs Apache-2.0, etc.) is detected by `@freenet-hub/licensee`
+License **identity** (MIT vs Apache-2.0, etc.) is detected by `@gitforge/licensee`
 content matchers (Copyright → Exact → Dice), not by filename alone.

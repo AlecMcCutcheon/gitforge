@@ -10,7 +10,7 @@ import {
 type RepoTab = "code" | "commits" | "branches" | "tags" | "settings";
 // OLD CODE - KEEP UNTIL CONFIRMED WORKING
 // | "releases" — GitHub-style releases UI (tags dressed as releases); removed
-// until freenet-git / GitAtlas have a real release+actions story.
+// until freenet-git / GitForge have a real release+actions story.
 
 export interface RepoRouteInfo {
   prefix: string;
@@ -87,7 +87,7 @@ function TagsIcon() {
 // OLD CODE - KEEP UNTIL CONFIRMED WORKING
 // function ReleasesIcon() { ... } — removed with Releases tab
 
-/** Second row under GitAtlas — only while browsing a repo. */
+/** Second row under GitForge — only while browsing a repo. */
 export function RepoSiteNav({ route }: { route: RepoRouteInfo }) {
   const { prefix, label, branch, tab, ownerOpts } = route;
   const [settingsAllowed, setSettingsAllowed] = useState<boolean | null>(null);
@@ -167,14 +167,14 @@ export function RepoSiteNav({ route }: { route: RepoRouteInfo }) {
         */}
         <span
           className="repo-tab-soon"
-          title="Not on GitAtlas yet — needs real release artifacts + runners (see docs/12-future-releases-actions.md)"
+          title="Not on GitForge yet — needs real release artifacts + runners (see docs/12-future-releases-actions.md)"
         >
           Releases
         </span>
-        <span className="repo-tab-soon" title="Not available on GitAtlas yet">
+        <span className="repo-tab-soon" title="Not available on GitForge yet">
           Issues
         </span>
-        <span className="repo-tab-soon" title="Not available on GitAtlas yet">
+        <span className="repo-tab-soon" title="Not available on GitForge yet">
           Pull requests
         </span>
         {settingsEnabled ? (
@@ -189,7 +189,7 @@ export function RepoSiteNav({ route }: { route: RepoRouteInfo }) {
             className="repo-tab-soon"
             title={
               settingsAllowed === false
-                ? "Settings require the site key on this identity (or a GitAtlas listing)"
+                ? "Settings require the site key on this identity (or a GitForge listing)"
                 : "Checking ownership…"
             }
           >

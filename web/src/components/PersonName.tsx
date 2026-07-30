@@ -1,5 +1,5 @@
 /**
- * Show a person's current HubProfile username for a registry fingerprint.
+ * Show a person's current ForgeProfile username for a registry fingerprint.
  */
 import { useEffect, useState } from "react";
 import { Link } from "../spa-link";

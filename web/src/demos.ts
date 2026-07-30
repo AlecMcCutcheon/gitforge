@@ -1,4 +1,4 @@
-/** Official Freenet mirrors curated for GitAtlas (same list as server DEMO_REPOS). */
+/** Official Freenet mirrors curated for GitForge (same list as server DEMO_REPOS). */
 export const EMBEDDED_DEMOS: Array<{
   name: string;
   description: string;

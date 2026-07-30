@@ -22,10 +22,10 @@ import {
   signVaultPayloadLocally,
   unwrapApiKeyPayload,
   VAULT_SCHEMA_VERSION,
-  type HubVaultPublicState,
+  type ForgeVaultPublicState,
   type ReposEnvelopePlaintext,
 } from "../../web/src/freenet/vault-crypto.ts";
-import { fetchHubVault, putOrUpdateHubVault } from "../../web/src/freenet/hub-vault.ts";
+import { fetchForgeVault, putOrUpdateForgeVault } from "../../web/src/freenet/forge-vault.ts";
 import { nativeImportRepoKey } from "../../web/src/freenet/owner-api.ts";
 import { resetFreenetConn } from "../../web/src/freenet/ws.ts";
 
@@ -33,7 +33,7 @@ const KEEP = new Set(["7FMQGtHpkidg"]);
 const JUNK = new Set(["HJmpEvknvro1", "5UV6MZUeTtdw", "59s4QBQfKyar"]);
 
 async function main(): Promise<void> {
-  const apiKey = process.env.GATK || process.env.GITATLAS_API_KEY;
+  const apiKey = process.env.GATK || process.env.GITFORGE_API_KEY;
   const passphrase = process.env.FREENET_GIT_PASSPHRASE;
   const bundlePath = process.env.FREENET_GIT_IDENTITY;
   const vaultId =
@@ -86,7 +86,7 @@ async function main(): Promise<void> {
   }
   console.error(`Wrote pruned bundle ${abs}`);
 
-  const state = await fetchHubVault(vaultId);
+  const state = await fetchForgeVault(vaultId);
   if (!state?.identity_dek_wrap?.blob_b64) {
     throw new Error("vault missing");
   }
@@ -152,7 +152,7 @@ async function main(): Promise<void> {
     payload.ops_sk_hex,
     buildVaultSigningPayload(signInput),
   );
-  const next: HubVaultPublicState = {
+  const next: ForgeVaultPublicState = {
     schema_version: VAULT_SCHEMA_VERSION,
     vault_id: vaultId,
     envelopes: nextEnvelopes,
@@ -166,7 +166,7 @@ async function main(): Promise<void> {
     ...(wraps?.length ? { api_key_wraps: wraps } : {}),
     ...(authorized_ops?.length ? { authorized_ops } : {}),
   };
-  await putOrUpdateHubVault(vaultId, next);
+  await putOrUpdateForgeVault(vaultId, next);
   console.error("Vault repos envelope updated.");
 
   console.error("Re-importing kept keys into local delegate…");

@@ -5,17 +5,17 @@
  * the tip pack and rewrites the document (best-effort “raw” on stock nodes).
  *
  * True HTTP text/plain needs a freenet-core `/v1/git/.../raw` route; we do not
- * use that for GitAtlas links (must work on any stock node).
+ * use that for GitForge links (must work on any stock node).
  */
 import { freenetBasename } from "./shell-history-sync";
-import { gitatlasWebsiteBasename } from "./website-constants";
+import { forgeWebsiteBasename } from "./website-constants";
 
 export const RAW_QUERY_PARAM = "raw";
 
-/** Absolute GitAtlas URL that survives reload: `/v1/contract/web/KEY/?raw=/…/raw/…`. */
+/** Absolute GitForge URL that survives reload: `/v1/contract/web/KEY/?raw=/…/raw/…`. */
 export function freenetRawFileHref(appRawPath: string): string {
   const path = appRawPath.startsWith("/") ? appRawPath : `/${appRawPath}`;
-  const base = (freenetBasename() || gitatlasWebsiteBasename()).replace(
+  const base = (freenetBasename() || forgeWebsiteBasename()).replace(
     /\/$/,
     "",
   );
@@ -53,7 +53,7 @@ export interface ParsedRawAppPath {
 }
 
 /**
- * Parse GitAtlas raw app paths:
+ * Parse GitForge raw app paths:
  * `/r/{prefix}~{label}/raw/{branch}/{file…}`
  * `/{words}/{prefix}~{label}/raw/{branch}/{file…}`
  * `/{prefix}~{label}/raw/{branch}/{file…}`

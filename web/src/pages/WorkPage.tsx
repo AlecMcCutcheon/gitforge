@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "../spa-link";
-import { api, type HubPagesConfig, type HubRegistration } from "../api";
+import { api, type ForgePagesConfig, type ForgeRegistration } from "../api";
 import {
   currentIdentity,
   downloadBytesFile,
@@ -8,7 +8,7 @@ import {
   getCachedIdentity,
   onAuthSessionChange,
 } from "../freenet/auth-api";
-import type { HubIdentityInfo } from "../freenet/owner-api";
+import type { ForgeIdentityInfo } from "../freenet/owner-api";
 import { PageLoadingOverlay } from "../components/PageLoadingOverlay";
 import { PassphraseReveal } from "../components/PassphraseReveal";
 import { PersonName } from "../components/PersonName";
@@ -18,6 +18,7 @@ import {
   peoplePath,
 } from "../freenet/fingerprint-words";
 import { repoHref } from "../lib/repo-path";
+import { brand } from "../lib/brand";
 import { isBrowserNativeMode } from "../tip-browse";
 
 function WorkRepoPagesControls({
@@ -27,12 +28,12 @@ function WorkRepoPagesControls({
 }: {
   prefix: string;
   label: string;
-  /** HubRegistry listing present (your work list ⇒ you are registry owner). */
+  /** ForgeRegistry listing present (your work list ⇒ you are registry owner). */
   registered: boolean;
 }) {
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // const websiteMode = isBrowserNativeMode();
-  const [pages, setPages] = useState<HubPagesConfig | null>(null);
+  const [pages, setPages] = useState<ForgePagesConfig | null>(null);
   const [branch, setBranch] = useState("main");
   const [rootPath, setRootPath] = useState("");
   const [busy, setBusy] = useState(false);
@@ -55,7 +56,7 @@ function WorkRepoPagesControls({
     };
   }, [prefix, label]);
 
-  const run = async (fn: () => Promise<HubPagesConfig>) => {
+  const run = async (fn: () => Promise<ForgePagesConfig>) => {
     setBusy(true);
     try {
       setPages(await fn());
@@ -174,7 +175,7 @@ function WorkNeedsIdentity() {
 
 export function WorkPage() {
   const websiteMode = isBrowserNativeMode();
-  const [hubIdentity, setHubIdentity] = useState<HubIdentityInfo | null>(() =>
+  const [forgeIdentity, setForgeIdentity] = useState<ForgeIdentityInfo | null>(() =>
     websiteMode ? getCachedIdentity() : null,
   );
   const [sessionReady, setSessionReady] = useState(!websiteMode);
@@ -186,7 +187,7 @@ export function WorkPage() {
   const [delegateRepos, setDelegateRepos] = useState<
     Array<{ prefix: string; label: string }>
   >([]);
-  const [registered, setRegistered] = useState<HubRegistration[]>([]);
+  const [registered, setRegistered] = useState<ForgeRegistration[]>([]);
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // const [idName, setIdName] = useState("");
   // const [idEmail, setIdEmail] = useState("");
@@ -216,12 +217,12 @@ export function WorkPage() {
   const refresh = async () => {
     if (websiteMode) {
       const id = await currentIdentity();
-      setHubIdentity(id);
+      setForgeIdentity(id);
       if (!id) {
         setIdentity({
           ok: false,
           stdout: "",
-          stderr: "No GitAtlas identity in delegate",
+          stderr: `No ${brand.displayName} identity in delegate`,
         });
         setDelegateRepos([]);
         setRegistered([]);
@@ -269,11 +270,11 @@ export function WorkPage() {
   }, [websiteMode]);
 
   const parsed = useMemo(() => {
-    if (websiteMode && hubIdentity) {
+    if (websiteMode && forgeIdentity) {
       return {
-        fingerprint: hubIdentity.fingerprint,
-        name: hubIdentity.name,
-        email: hubIdentity.email || null,
+        fingerprint: forgeIdentity.fingerprint,
+        name: forgeIdentity.name,
+        email: forgeIdentity.email || null,
         repos: delegateRepos,
       };
     }
@@ -286,10 +287,10 @@ export function WorkPage() {
       email: fromWhoami?.email ?? null,
       repos: delegateRepos,
     };
-  }, [identity, websiteMode, delegateRepos, hubIdentity]);
+  }, [identity, websiteMode, delegateRepos, forgeIdentity]);
 
   const registeredByPrefix = useMemo(() => {
-    const m = new Map<string, HubRegistration>();
+    const m = new Map<string, ForgeRegistration>();
     for (const r of registered) m.set(r.repo_prefix, r);
     return m;
   }, [registered]);
@@ -354,7 +355,7 @@ export function WorkPage() {
     return <PageLoadingOverlay skeleton="auth" message="" />;
   }
 
-  if (websiteMode && !hubIdentity) {
+  if (websiteMode && !forgeIdentity) {
     return <WorkNeedsIdentity />;
   }
 
@@ -371,7 +372,7 @@ export function WorkPage() {
         <p className="lede">
           {websiteMode ? (
             <>
-              Connected via the GitAtlas identity delegate. Manage create /
+              Connected via the {brand.displayName} identity delegate. Manage create /
               restore / vault on{" "}
               <Link to="/identity">Identity</Link>. Export a freenet-git CLI
               bundle to push with{" "}
@@ -384,11 +385,11 @@ export function WorkPage() {
             </>
           )}
         </p>
-        {identity?.ok || (websiteMode && hubIdentity) ? (
+        {identity?.ok || (websiteMode && forgeIdentity) ? (
           <>
             <pre className="mono pre">
-              {websiteMode && hubIdentity
-                ? `${hubIdentity.name} <${hubIdentity.email}>\n${hubIdentity.fingerprint}\n`
+              {websiteMode && forgeIdentity
+                ? `${forgeIdentity.name} <${forgeIdentity.email}>\n${forgeIdentity.fingerprint}\n`
                 : identity?.stdout}
             </pre>
             {parsed?.fingerprint ? (
@@ -525,7 +526,7 @@ export function WorkPage() {
                         />
                       </div>
                     ) : (
-                      <div className="muted tiny">Not on HubRegistry yet</div>
+                      <div className="muted tiny">Not on ForgeRegistry yet</div>
                     )}
                     <WorkRepoPagesControls
                       prefix={r.prefix}

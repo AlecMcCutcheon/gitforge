@@ -9,6 +9,11 @@
  */
 
 import type { ScopePolicy } from "./local-protect";
+import {
+  brandStorageKey,
+  readLocalStorage,
+  writeLocalStorage,
+} from "../lib/brand-storage";
 
 export interface ProtectPrefs {
   autoProtectOwnRepos: boolean;
@@ -22,7 +27,7 @@ export interface RememberedProtectScope {
   label?: string;
 }
 
-/** Full local_protect bag sealed in HubVault settings. */
+/** Full local_protect bag sealed in ForgeVault settings. */
 export interface ProtectVaultIntent {
   autoProtectOwnRepos?: boolean;
   autoProtectStars?: boolean;
@@ -36,10 +41,10 @@ export const DEFAULT_PROTECT_PREFS: ProtectPrefs = {
   autoProtectStars: false,
 };
 
-const PREFS_KEY = "gitatlas.protect.prefs";
-const INTENT_KEY = "gitatlas.protect.intent";
-const PREFS_EVENT = "freenethub-protect-prefs";
-const INTENT_EVENT = "freenethub-protect-intent";
+const PREFS_KEY = brandStorageKey("protect.prefs");
+const INTENT_KEY = brandStorageKey("protect.intent");
+const PREFS_EVENT = "gitforge-protect-prefs";
+const INTENT_EVENT = "gitforge-protect-intent";
 
 /** Tab-lifetime mirror when localStorage is unavailable. */
 let memoryPrefs: ProtectPrefs | null = null;
@@ -96,7 +101,7 @@ export function normalizeProtectVaultIntent(
 export function getProtectPrefs(): ProtectPrefs {
   if (memoryPrefs) return { ...memoryPrefs };
   try {
-    const raw = localStorage.getItem(PREFS_KEY);
+    const raw = readLocalStorage(PREFS_KEY);
     if (!raw) return { ...DEFAULT_PROTECT_PREFS };
     const parsed = normalizePrefs(JSON.parse(raw) as Partial<ProtectPrefs>);
     memoryPrefs = parsed;
@@ -109,11 +114,7 @@ export function getProtectPrefs(): ProtectPrefs {
 export function setProtectPrefs(prefs: ProtectPrefs): ProtectPrefs {
   const next = normalizePrefs(prefs);
   memoryPrefs = next;
-  try {
-    localStorage.setItem(PREFS_KEY, JSON.stringify(next));
-  } catch {
-    /* sandbox */
-  }
+  writeLocalStorage(PREFS_KEY, JSON.stringify(next));
   // Keep intent prefs in sync for vault seals.
   const intent = getProtectVaultIntent();
   intent.autoProtectOwnRepos = next.autoProtectOwnRepos;
@@ -143,11 +144,7 @@ export function onProtectPrefsChanged(cb: (prefs: ProtectPrefs) => void): () => 
 
 function writeIntentLocal(intent: ProtectVaultIntent): void {
   memoryIntent = normalizeProtectVaultIntent(intent);
-  try {
-    localStorage.setItem(INTENT_KEY, JSON.stringify(memoryIntent));
-  } catch {
-    /* sandbox */
-  }
+  writeLocalStorage(INTENT_KEY, JSON.stringify(memoryIntent));
   try {
     window.dispatchEvent(
       new CustomEvent(INTENT_EVENT, { detail: memoryIntent }),
@@ -160,7 +157,7 @@ function writeIntentLocal(intent: ProtectVaultIntent): void {
 export function getProtectVaultIntent(): ProtectVaultIntent {
   if (memoryIntent) return normalizeProtectVaultIntent(memoryIntent);
   try {
-    const raw = localStorage.getItem(INTENT_KEY);
+    const raw = readLocalStorage(INTENT_KEY);
     if (raw) {
       memoryIntent = normalizeProtectVaultIntent(
         JSON.parse(raw) as ProtectVaultIntent,
@@ -189,11 +186,7 @@ export function applyProtectIntentFromRemote(
     autoProtectOwnRepos: Boolean(next.autoProtectOwnRepos),
     autoProtectStars: Boolean(next.autoProtectStars),
   };
-  try {
-    localStorage.setItem(PREFS_KEY, JSON.stringify(memoryPrefs));
-  } catch {
-    /* sandbox */
-  }
+  writeLocalStorage(PREFS_KEY, JSON.stringify(memoryPrefs));
   try {
     window.dispatchEvent(new CustomEvent(PREFS_EVENT, { detail: memoryPrefs }));
   } catch {
@@ -252,7 +245,7 @@ async function pushProtectIntentToVaultBestEffort(): Promise<void> {
     await pushProtectIntentToVault(getProtectVaultIntent());
   } catch (err) {
     console.warn(
-      "[freenet-hub] protect intent vault persist failed",
+      "[freenet-forge] protect intent vault persist failed",
       err instanceof Error ? err.message : err,
     );
   }

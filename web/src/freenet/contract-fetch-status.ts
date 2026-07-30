@@ -1,6 +1,6 @@
 /**
  * Freenet shell shows "Fetching contract from the network…" while a GET is
- * still in flight on peers (HTTP 503 + auto-refresh). GitAtlas talks over WS
+ * still in flight on peers (HTTP 503 + auto-refresh). GitForge talks over WS
  * after the SPA is loaded, so it must surface the same idea itself.
  */
 

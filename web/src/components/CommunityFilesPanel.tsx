@@ -10,7 +10,7 @@ import {
   licenseTabLabel,
   type CommunityFiles,
   type DetectResult,
-} from "@freenet-hub/licensee";
+} from "@gitforge/licensee";
 import { api } from "../api";
 import { nativeEnsureTip } from "../freenet/native-api";
 import { ReadmePanel } from "./MarkdownPanel";

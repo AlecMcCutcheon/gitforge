@@ -1,22 +1,22 @@
 /**
  * Short-lived in-memory / session caches for discover-page Freenet reads.
  */
-import type { HubRegistration } from "../api";
-import type { HubStarsStateJson } from "./hub-stars";
+import type { ForgeRegistration } from "../api";
+import type { ForgeStarsStateJson } from "./forge-stars";
 
-const REGISTRY_KEY = "gitatlas.hub-registry.v1";
-const STARS_KEY = "gitatlas.hub-stars.v1";
+const REGISTRY_KEY = "gitforge.registry.v1";
+const STARS_KEY = "gitforge.stars.v1";
 
 /** Prefixes removed locally until a later upsert re-lists them. */
 const locallyRemovedPrefixes = new Set<string>();
 
-let registryMemory: HubRegistration[] | null = null;
-let starsMemory: HubStarsStateJson | null = null;
-let starsInflight: Promise<HubStarsStateJson> | null = null;
+let registryMemory: ForgeRegistration[] | null = null;
+let starsMemory: ForgeStarsStateJson | null = null;
+let starsInflight: Promise<ForgeStarsStateJson> | null = null;
 /** Bumped on invalidate/upsert so stale in-flight GETs cannot overwrite. */
 let registryEpoch = 0;
 
-export function peekCachedRegistry(): HubRegistration[] | null {
+export function peekCachedRegistry(): ForgeRegistration[] | null {
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // return registryMemory / session as-is
   // NEW CODE - TESTING: hide locally-unregistered prefixes from warm reads
@@ -24,7 +24,7 @@ export function peekCachedRegistry(): HubRegistration[] | null {
     try {
       const raw = sessionStorage.getItem(REGISTRY_KEY);
       if (!raw) return null;
-      const data = JSON.parse(raw) as { repos?: HubRegistration[] };
+      const data = JSON.parse(raw) as { repos?: ForgeRegistration[] };
       if (Array.isArray(data.repos)) {
         registryMemory = data.repos;
       }
@@ -36,7 +36,7 @@ export function peekCachedRegistry(): HubRegistration[] | null {
   return applyLocalRemovals(registryMemory);
 }
 
-export function storeCachedRegistry(repos: HubRegistration[]): void {
+export function storeCachedRegistry(repos: ForgeRegistration[]): void {
   registryMemory = repos;
   try {
     sessionStorage.setItem(REGISTRY_KEY, JSON.stringify({ repos }));
@@ -49,7 +49,7 @@ export function storeCachedRegistry(repos: HubRegistration[]): void {
  * Merge a just-registered / updated listing into the warm cache so repo pages
  * navigated to right after create see Registered without waiting on a GET race.
  */
-export function upsertCachedRegistryEntry(entry: HubRegistration): void {
+export function upsertCachedRegistryEntry(entry: ForgeRegistration): void {
   const cur = peekCachedRegistry() ?? [];
   const next = [
     ...cur.filter((r) => r.repo_prefix !== entry.repo_prefix),
@@ -66,7 +66,7 @@ export function upsertCachedRegistryEntry(entry: HubRegistration): void {
 
 /**
  * Drop one listing from the warm cache (unregister / soft-delete).
- * Keeps a tombstone so a lagging HubRegistry GET cannot resurrect it.
+ * Keeps a tombstone so a lagging ForgeRegistry GET cannot resurrect it.
  */
 export function removeCachedRegistryEntry(prefix: string): void {
   locallyRemovedPrefixes.add(prefix);
@@ -98,17 +98,17 @@ export function isLocallyRemovedRegistryPrefix(prefix: string): boolean {
   return locallyRemovedPrefixes.has(prefix.trim());
 }
 
-function applyLocalRemovals(repos: HubRegistration[]): HubRegistration[] {
+function applyLocalRemovals(repos: ForgeRegistration[]): ForgeRegistration[] {
   if (locallyRemovedPrefixes.size === 0) return repos;
   return repos.filter((r) => !locallyRemovedPrefixes.has(r.repo_prefix));
 }
 
-let registryInflight: Promise<HubRegistration[]> | null = null;
+let registryInflight: Promise<ForgeRegistration[]> | null = null;
 
-/** Deduped HubRegistry GET — repo pages were issuing 3× identical contract GETs. */
+/** Deduped ForgeRegistry GET — repo pages were issuing 3× identical contract GETs. */
 export async function loadRegistryCached(
-  fetcher: () => Promise<{ repos: HubRegistration[] }>,
-): Promise<HubRegistration[]> {
+  fetcher: () => Promise<{ repos: ForgeRegistration[] }>,
+): Promise<ForgeRegistration[]> {
   const warm = peekCachedRegistry();
   if (warm) {
     if (!registryInflight) {
@@ -147,12 +147,12 @@ export async function loadRegistryCached(
   return registryInflight;
 }
 
-export function peekCachedStars(): HubStarsStateJson | null {
+export function peekCachedStars(): ForgeStarsStateJson | null {
   if (starsMemory) return starsMemory;
   try {
     const raw = sessionStorage.getItem(STARS_KEY);
     if (!raw) return null;
-    const data = JSON.parse(raw) as HubStarsStateJson;
+    const data = JSON.parse(raw) as ForgeStarsStateJson;
     if (data && typeof data === "object" && data.by_repo) {
       starsMemory = data;
       return data;
@@ -163,7 +163,7 @@ export function peekCachedStars(): HubStarsStateJson | null {
   return null;
 }
 
-export function storeCachedStars(state: HubStarsStateJson): void {
+export function storeCachedStars(state: ForgeStarsStateJson): void {
   starsMemory = state;
   try {
     sessionStorage.setItem(STARS_KEY, JSON.stringify(state));
@@ -172,10 +172,10 @@ export function storeCachedStars(state: HubStarsStateJson): void {
   }
 }
 
-/** Deduped HubStars GET so discover badges / profiles share one round-trip. */
+/** Deduped ForgeStars GET so discover badges / profiles share one round-trip. */
 export async function loadStarsCached(
-  fetcher: () => Promise<{ state: HubStarsStateJson }>,
-): Promise<HubStarsStateJson> {
+  fetcher: () => Promise<{ state: ForgeStarsStateJson }>,
+): Promise<ForgeStarsStateJson> {
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // if (starsMemory) { … return starsMemory; }
   // NEW CODE - TESTING: hydrate from session peek, not only in-process memory

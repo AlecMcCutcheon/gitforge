@@ -5,6 +5,7 @@
 import { hmac } from "@noble/hashes/hmac";
 import { sha1 } from "@noble/hashes/sha1";
 import { randomBytes } from "@noble/hashes/utils";
+import { brand } from "../lib/brand";
 
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
@@ -121,7 +122,7 @@ export function otpauthUrl(input: {
   accountName: string;
   issuer?: string;
 }): string {
-  const issuer = input.issuer ?? "GitAtlas";
+  const issuer = input.issuer ?? brand.displayName;
   const label = encodeURIComponent(`${issuer}:${input.accountName}`);
   const params = new URLSearchParams({
     secret: input.secretB32.replace(/=+$/g, ""),

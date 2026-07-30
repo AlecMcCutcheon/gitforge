@@ -88,7 +88,7 @@ function rewriteTextDocument(filename: string, text: string): boolean {
   document.write(`<title>${filename.replace(/[<>&"]/g, "")}</title>`);
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // white GitHub-raw look: background:#fff;color:#24292f
-  // NEW CODE - TESTING: GitAtlas dark (black bg, light text)
+  // NEW CODE - TESTING: GitForge dark (black bg, light text)
   document.write(
     "<style>html,body{margin:0;background:#0e1412;color:#e8f0eb}" +
       "pre{margin:0;padding:16px;white-space:pre-wrap;word-wrap:break-word;" +

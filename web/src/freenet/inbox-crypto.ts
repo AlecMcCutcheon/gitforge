@@ -8,7 +8,7 @@ import { xchacha20poly1305 } from "@noble/ciphers/chacha";
 import { blake3 } from "@noble/hashes/blake3";
 import { bytesToHex, hexToBytes, randomBytes } from "@noble/hashes/utils";
 
-const INBOX_SEED_DOMAIN = new TextEncoder().encode("gitatlas.profile.inbox-x25519-v1\0");
+const INBOX_SEED_DOMAIN = new TextEncoder().encode("gitforge.profile.inbox-x25519-v1\0");
 
 export interface InboxPlaintextEnvelope {
   v: number;

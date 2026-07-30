@@ -2,7 +2,7 @@
  * React Router links that skip Freenet's navigation interceptor.
  *
  * Without `data-freenet-no-intercept`, every <a> click is turned into an
- * iframe.src reload (full SPA remount). That made GitAtlas→Discover feel
+ * iframe.src reload (full SPA remount). That made GitForge→Discover feel
  * broken (cold identity probe) and repo clicks feel endless.
  */
 import {

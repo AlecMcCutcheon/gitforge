@@ -4,12 +4,12 @@ import {
   peekCachedStars,
 } from "../freenet/discover-cache";
 import {
-  fetchHubStars,
+  fetchForgeStars,
   isStarredBy,
   starCountForRepo,
   starRepo,
   unstarRepo,
-} from "../freenet/hub-stars";
+} from "../freenet/forge-stars";
 import { getCachedIdentity } from "../freenet/auth-api";
 import { nativeGetIdentity } from "../freenet/owner-api";
 import { isBrowserNativeMode } from "../tip-browse";
@@ -21,7 +21,7 @@ export function StarButton({
 }: {
   prefix: string;
   label: string;
-  /** HubRegistry listing — starring disabled when false. Defaults off until known. */
+  /** ForgeRegistry listing — starring disabled when false. Defaults off until known. */
   registered?: boolean;
 }) {
   const websiteMode = isBrowserNativeMode();
@@ -33,7 +33,7 @@ export function StarButton({
 
   const refresh = async () => {
     // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-    // Always hit HubStars on mount — raced tip-pack parent walks on the WS queue.
+    // Always hit ForgeStars on mount — raced tip-pack parent walks on the WS queue.
     // NEW CODE - TESTING: paint from cache; background refresh is low-priority soft GET
     const warm = peekCachedStars();
     if (warm) {
@@ -43,7 +43,7 @@ export function StarButton({
       setStarred(fp ? isStarredBy(warm, prefix, fp) : false);
     }
     const [state, id] = await Promise.all([
-      loadStarsCached(() => fetchHubStars()),
+      loadStarsCached(() => fetchForgeStars()),
       websiteMode ? nativeGetIdentity().catch(() => null) : Promise.resolve(null),
     ]);
     setCount(starCountForRepo(state, prefix));
@@ -116,7 +116,7 @@ export function StarButton({
             });
           } catch (err: unknown) {
             console.warn(
-              "[freenet-hub] star protect prompt failed",
+              "[freenet-forge] star protect prompt failed",
               err instanceof Error ? err.message : err,
             );
           }
@@ -158,7 +158,7 @@ export function StarCountBadge({ prefix }: { prefix: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    void loadStarsCached(() => fetchHubStars())
+    void loadStarsCached(() => fetchForgeStars())
       .then((state) => {
         if (!cancelled) setCount(starCountForRepo(state, prefix));
       })

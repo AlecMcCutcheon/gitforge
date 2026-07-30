@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { isBrowserNativeMode } from "../tip-browse";
-import type { LanguageBreakdown, LanguageSlice } from "@freenet-hub/linguist";
+import type { LanguageBreakdown, LanguageSlice } from "@gitforge/linguist";
 
 const FALLBACK_COLOR = "#858585";
 /** GitHub sidebar “Other” chip. */
@@ -82,7 +82,7 @@ export function LanguagesSidebarBlock({
           if (cancelled) return;
           setStats(row);
           setLoading(false);
-          // NEW CODE - TESTING: owner caches primary lang on HubRegistry
+          // NEW CODE - TESTING: owner caches primary lang on ForgeRegistry
           const primary = row.languages[0];
           if (!primary?.name) return;
           void (async () => {
@@ -105,7 +105,7 @@ export function LanguagesSidebarBlock({
               });
             } catch (e) {
               console.warn(
-                "[freenet-hub] language publish hook:",
+                "[freenet-forge] language publish hook:",
                 e instanceof Error ? e.message : e,
               );
             }

@@ -11,11 +11,11 @@ export default defineConfig({
   base: "./",
   resolve: {
     alias: {
-      "@freenet-hub/linguist": path.resolve(
+      "@gitforge/linguist": path.resolve(
         rootDir,
         "../freenet-linguist/src/index.ts",
       ),
-      "@freenet-hub/licensee": path.resolve(
+      "@gitforge/licensee": path.resolve(
         rootDir,
         "../freenet-licensee/src/index.ts",
       ),

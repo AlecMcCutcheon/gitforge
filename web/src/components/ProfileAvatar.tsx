@@ -7,7 +7,7 @@ interface ProfileAvatarProps {
   /** @deprecated Prefer fingerprint; kept for vault-id fallback. */
   vaultId?: string;
   /**
-   * HubProfile avatar field. Only user-uploaded raster data-URLs are shown;
+   * ForgeProfile avatar field. Only user-uploaded raster data-URLs are shown;
    * empty / SVG / anything else → live fingerprint identicon.
    */
   avatarUrl?: string | null;
@@ -18,7 +18,7 @@ interface ProfileAvatarProps {
 
 /**
  * Custom uploaded photo, or GitHub-style identicon from fingerprint
- * (joric/identicons). Procedural icons are never stored on HubProfile.
+ * (joric/identicons). Procedural icons are never stored on ForgeProfile.
  */
 export function ProfileAvatar({
   fingerprint,

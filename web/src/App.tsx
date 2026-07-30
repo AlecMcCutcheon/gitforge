@@ -18,6 +18,7 @@ import { RepoPage } from "./pages/RepoPage";
 import { RootPage } from "./pages/RootPage";
 import { WorkRedirect } from "./pages/WorkRedirect";
 import { peekRawQueryPath } from "./freenet/raw-entry";
+import { brand } from "./lib/brand";
 import { isBrowserNativeMode } from "./tip-browse";
 
 export function App() {
@@ -26,9 +27,9 @@ export function App() {
   const [identityOk, setIdentityOk] = useState<boolean | null>(null);
   const websiteMode = isBrowserNativeMode();
   const repoRoute = useRepoRoute();
-  // NEW CODE - TESTING: Overview/Repos/Stars under GitAtlas like repo tabs
+  // NEW CODE - TESTING: Overview/Repos/Stars under GitForge like repo tabs
   const peopleRoute = usePeopleRoute();
-  // GitAtlas-safe raw entry (?raw= on website root) or deep /raw/ (in-session).
+  // GitForge-safe raw entry (?raw= on website root) or deep /raw/ (in-session).
   const rawQuery = peekRawQueryPath(location.search);
   const isRawRoute = Boolean(rawQuery) || /(^|\/)raw\//.test(location.pathname);
 
@@ -51,7 +52,7 @@ export function App() {
 
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // Redirect ?raw= to freenet-core /v1/git/.../raw (non-stock nodes only)
-  // NEW CODE - TESTING: SPA RawEntryPage on GitAtlas (works on any node)
+  // NEW CODE - TESTING: SPA RawEntryPage on GitForge (works on any node)
   if (rawQuery) {
     return (
       <div className="shell shell--raw">
@@ -68,7 +69,7 @@ export function App() {
         <div className="topnav">
           <NavLink to="/" className="brand-link" end>
             <BrandLogo size={32} className="brand-logo" />
-            <span className="brand-mark">GitAtlas</span>
+            <span className="brand-mark">{brand.displayName}</span>
           </NavLink>
           {websiteMode ? (
             <AccountHeaderLink />

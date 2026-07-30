@@ -1,4 +1,4 @@
-//! Browser-facing RepoState tip summary for FreenetHub.
+//! Browser-facing RepoState tip summary for GitForge.
 //!
 //! Compiles to wasm (`cdylib`) so the Freenet website SPA can pick a tip pack
 //! without Node/`git`. Pack bytes are decoded in TypeScript.
@@ -47,7 +47,7 @@ struct SummaryJson {
     mirror_mode: Option<String>,
     /// Soft-delete extension JSON value when present (UTF-8).
     deleted: Option<String>,
-    /// GitAtlas Pages extension JSON when present (UTF-8).
+    /// GitForge Pages extension JSON when present (UTF-8).
     pages: Option<String>,
     /// Owner-signed display name from RepoState.
     name: Option<String>,

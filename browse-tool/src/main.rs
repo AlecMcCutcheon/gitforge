@@ -1,4 +1,4 @@
-//! Tip-only Freenet pack fetch for FreenetHub.
+//! Tip-only Freenet pack fetch for GitForge.
 //!
 //! Skips legacy (untipped) bundles that stock `git-remote-freenet` always
 //! downloads. Used for GitHub-style browse: one tip pack → tree/blob decode.
@@ -20,7 +20,7 @@ use serde::Serialize;
 use tokio::sync::Mutex;
 
 #[derive(Parser)]
-#[command(name = "freenet-hub-tip", about = "Tip-only Freenet git pack browse helper")]
+#[command(name = "freenet-forge-tip", about = "Tip-only Freenet git pack browse helper")]
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
@@ -35,7 +35,7 @@ enum Cmd {
         /// Branch or tag short name, or refs/heads/…, or "HEAD"
         #[arg(long, default_value = "HEAD")]
         git_ref: String,
-        #[arg(long, env = "FREENET_HUB_TIP_CACHE")]
+        #[arg(long, env = "GITFORGE_TIP_CACHE")]
         cache_root: Option<PathBuf>,
         #[arg(long, env = "FREENET_GIT_WS_URL", default_value = wsclient::DEFAULT_WS_URL)]
         ws_url: String,

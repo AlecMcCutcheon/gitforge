@@ -12,7 +12,7 @@ export interface CachedPack {
   storedAt: number;
 }
 
-const DB_NAME = "freenethub-tip-packs";
+const DB_NAME = "gitforge-tip-packs";
 const STORE = "packs";
 const DB_VERSION = 1;
 
@@ -82,7 +82,7 @@ export async function idbGetPack(bundleId: string): Promise<CachedPack | null> {
       req.onerror = () => reject(req.error);
     });
   } catch (err) {
-    console.warn("[freenet-hub] idbGetPack failed; memory only", err);
+    console.warn("[freenet-forge] idbGetPack failed; memory only", err);
     idbAvailable = false;
     return memoryPacks.get(bundleId) ?? null;
   }
@@ -100,13 +100,13 @@ export async function idbPutPack(entry: CachedPack): Promise<void> {
       tx.onerror = () => reject(tx.error);
     });
   } catch (err) {
-    console.warn("[freenet-hub] idbPutPack failed; kept in memory", err);
+    console.warn("[freenet-forge] idbPutPack failed; kept in memory", err);
     idbAvailable = false;
   }
 }
 
 export function packCacheKey(bundleId: string): string {
-  return `freenethub:pack:${bundleId}`;
+  return `gitforge:pack:${bundleId}`;
 }
 
 /** Drop in-memory tip packs for one repo prefix (returns removed bundle ids). */
@@ -141,7 +141,7 @@ export async function idbDeletePack(bundleId: string): Promise<void> {
       tx.onerror = () => reject(tx.error);
     });
   } catch (err) {
-    console.warn("[freenet-hub] idbDeletePack failed", err);
+    console.warn("[freenet-forge] idbDeletePack failed", err);
     idbAvailable = false;
   }
 }
@@ -170,7 +170,7 @@ export async function idbClearPacksForPrefix(prefix: string): Promise<void> {
       tx.onerror = () => reject(tx.error);
     });
   } catch (err) {
-    console.warn("[freenet-hub] idbClearPacksForPrefix failed", err);
+    console.warn("[freenet-forge] idbClearPacksForPrefix failed", err);
     idbAvailable = false;
   }
 }

@@ -7,13 +7,13 @@ body:
     attributes:
       value: |
         Features and behavior changes need **maintainer approach approval** before a PR.
-        Silence is not approval. See [CONTRIBUTING.md](https://github.com/AlecMcCutcheon/gitatlas/blob/main/CONTRIBUTING.md).
+        Silence is not approval. See [CONTRIBUTING.md](https://github.com/AlecMcCutcheon/gitforge/blob/main/CONTRIBUTING.md).
   - type: textarea
     id: problem
     attributes:
       label: Problem
       description: Who hits this, and what breaks or is missing today?
-      placeholder: When I …, GitAtlas … instead of …
+      placeholder: When I …, GitForge … instead of …
     validations:
       required: true
   - type: textarea

@@ -1,13 +1,13 @@
 [workspace]
 resolver = "2"
 members = [
-    "contracts/hub-registry",
-    "contracts/hub-vault",
-    "contracts/hub-stars",
-    "contracts/hub-profile",
-    "contracts/hub-repo",
-    "delegates/hub-identity",
-    "delegates/hub-pages",
+    "contracts/forge-registry",
+    "contracts/forge-vault",
+    "contracts/forge-stars",
+    "contracts/forge-profile",
+    "contracts/forge-repo",
+    "delegates/forge-identity",
+    "delegates/forge-pages",
 ]
 # Standalone crates (own target dirs / wasm-bindgen); not part of this workspace.
 exclude = [

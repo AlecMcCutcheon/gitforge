@@ -1,9 +1,9 @@
 /**
- * Resolve a person's display username from HubProfile by fingerprint.
- * HubRegistry no longer stores usernames — only identity_fingerprint.
+ * Resolve a person's display username from ForgeProfile by fingerprint.
+ * ForgeRegistry no longer stores usernames — only identity_fingerprint.
  */
 import { isFingerprintId } from "./fingerprint-words";
-import { fetchHubProfile } from "./hub-profile";
+import { fetchForgeProfile } from "./forge-profile";
 
 const cache = new Map<string, string>();
 const inflight = new Map<string, Promise<string>>();
@@ -13,7 +13,7 @@ function normFp(fingerprint: string): string {
 }
 
 /**
- * Fallback when HubProfile is missing / has no username.
+ * Fallback when ForgeProfile is missing / has no username.
  * Prefer the registry identity_fingerprint (`freenet:id:…`) over blank UI.
  */
 export function personDisplayFallback(fingerprint: string): string {
@@ -23,7 +23,7 @@ export function personDisplayFallback(fingerprint: string): string {
 }
 
 /**
- * Resolve HubProfile.username for a fingerprint (cached).
+ * Resolve ForgeProfile.username for a fingerprint (cached).
  * Falls back to the fingerprint id when profile is missing / empty.
  */
 export async function resolvePersonDisplayName(
@@ -39,7 +39,7 @@ export async function resolvePersonDisplayName(
 
   const work = (async () => {
     try {
-      const profile = await fetchHubProfile(fingerprint).catch(() => null);
+      const profile = await fetchForgeProfile(fingerprint).catch(() => null);
       const username = profile?.username?.trim() ?? "";
       const name =
         username && !isFingerprintId(username)

@@ -9,7 +9,7 @@ import {
   type CommitEntry,
   type Contributor,
   type DemoRepo,
-  type HubRegistration,
+  type ForgeRegistration,
   type RepoPageData,
   type TreeEntry,
 } from "../api";
@@ -76,6 +76,7 @@ import { RepoNewFileView } from "./RepoNewFileView";
 import { RepoUploadView } from "./RepoUploadView";
 import { EmptyRepoSetup } from "../components/EmptyRepoSetup";
 import { useDocumentTitle } from "../lib/document-title";
+import { brand, registryLabel } from "../lib/brand";
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -346,7 +347,7 @@ export function RepoPage() {
   const [registryOwner, setRegistryOwner] = useState<string | null>(() =>
     hubUnregistered ? null : navRegistrationFp,
   );
-  // NEW CODE - TESTING: know when HubRegistry probe finished (badge vs flash)
+  // NEW CODE - TESTING: know when ForgeRegistry probe finished (badge vs flash)
   const [registryReady, setRegistryReady] = useState(
     () => Boolean(navRegistrationFp) || hubUnregistered,
   );
@@ -416,7 +417,7 @@ export function RepoPage() {
     if (!prefix) return;
     let unsub: (() => void) | null = null;
     let cancelled = false;
-    void import("../freenet/hub-repo").then(({ onOwnerRepoProvisioned }) => {
+    void import("../freenet/forge-repo").then(({ onOwnerRepoProvisioned }) => {
       if (cancelled) return;
       unsub = onOwnerRepoProvisioned((detail) => {
         if (detail.prefix !== prefix) return;
@@ -468,7 +469,7 @@ export function RepoPage() {
       setRegistryOwner(null);
       setRegistryReady(true);
       // Drop the one-shot flag so a later Register can stick; cache tombstone
-      // still blocks stale HubRegistry GETs from resurrecting the listing.
+      // still blocks stale ForgeRegistry GETs from resurrecting the listing.
       navigate(
         {
           pathname: location.pathname,
@@ -641,11 +642,11 @@ export function RepoPage() {
         if (!cancelled) setDemos([]);
       });
     // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-    // void api.registryLookup(prefix) … raced HubRegistry GET against tip pack
+    // void api.registryLookup(prefix) … raced ForgeRegistry GET against tip pack
     // NEW CODE - TESTING: warm owner from cache only until refs resolve
     void import("../freenet/discover-cache").then(({ peekCachedRegistry }) => {
       if (cancelled) return;
-      // Prefer create-nav fingerprint so Registered paints before HubRegistry GET
+      // Prefer create-nav fingerprint so Registered paints before ForgeRegistry GET
       if (hubUnregistered) {
         setRegistryOwner(null);
         setRegistryReady(true);
@@ -667,7 +668,7 @@ export function RepoPage() {
     };
   }, [params.ok, prefix, navRegistrationFp, hubUnregistered]);
 
-  // HubRegistry network after refs so tip-pack claims the FIFO WS queue first.
+  // ForgeRegistry network after refs so tip-pack claims the FIFO WS queue first.
   useEffect(() => {
     if (!repo || !prefix) return;
     let cancelled = false;
@@ -895,7 +896,7 @@ export function RepoPage() {
           </div>
         ) : null}
         <Link to="/" className="btn secondary">
-          Back to GitAtlas
+          Back to {brand.displayName}
         </Link>
       </main>
     );
@@ -1240,15 +1241,15 @@ function RepoHeader({
   repo: RepoPageData;
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // aboutText: string | null;
-  /** HubRegistry listing known (parent seeds after create / cache). null = still probing. */
+  /** ForgeRegistry listing known (parent seeds after create / cache). null = still probing. */
   registered: boolean | null;
-  onRegistered?: (registration: import("../api").HubRegistration) => void;
+  onRegistered?: (registration: import("../api").ForgeRegistration) => void;
 }) {
   const { prefix, label } = repo.url;
   const displayName = repoDisplayName(repo.name, label);
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // Always showed Import for any signed-in + unregistered (no key check).
-  // NEW CODE - TESTING: Import only when this prefix is in hub-identity (minimal match)
+  // NEW CODE - TESTING: Import only when this prefix is in forge-identity (minimal match)
   const [signedIn, setSignedIn] = useState(() => Boolean(getCachedIdentity()));
   const [canImport, setCanImport] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -1294,7 +1295,7 @@ function RepoHeader({
           This repository was marked deleted by the owner
           {repo.softDelete.at ? ` (${repo.softDelete.at})` : ""}. Data may still
           exist on Freenet until caches forget it; it will not appear in
-          GitAtlasRegistry (GAR).
+          {registryLabel()}.
         </div>
       ) : null}
       <div className="gh-repo-title-row">
@@ -1319,14 +1320,14 @@ function RepoHeader({
           {registered === true ? (
             <span
               className="gh-badge success-badge"
-              title="Listed on GitAtlasRegistry (GAR)"
+              title={`Listed on ${registryLabel()}`}
             >
               Registered
             </span>
           ) : registered === false ? (
             <span
               className="gh-badge warn-badge"
-              title="Not listed on GitAtlasRegistry (GAR)"
+              title={`Not listed on ${registryLabel()}`}
             >
               Unregistered
             </span>
@@ -1337,7 +1338,7 @@ function RepoHeader({
             <button
               type="button"
               className="btn secondary repo-import-btn"
-              title="Register this repo on GitAtlasRegistry (GAR)"
+              title={`Register this repo on ${registryLabel()}`}
               onClick={() => setImportOpen(true)}
             >
               Import
@@ -1380,7 +1381,7 @@ function DeletedRepoView({
   repo: RepoPageData;
   aboutText: string | null;
 }) {
-  const [registration, setRegistration] = useState<HubRegistration | null>(
+  const [registration, setRegistration] = useState<ForgeRegistration | null>(
     null,
   );
 
@@ -1500,7 +1501,7 @@ function EmptyRepoView({
   registered: boolean;
   ownerOpts?: RepoHrefOpts;
 }) {
-  const [registration, setRegistration] = useState<HubRegistration | null>(
+  const [registration, setRegistration] = useState<ForgeRegistration | null>(
     null,
   );
   const [aboutDesc, setAboutDesc] = useState<string | null>(aboutText);
@@ -1638,7 +1639,7 @@ function TreeView({
   const [commitCount, setCommitCount] = useState<number | null>(null);
   const [contributors, setContributors] = useState<Contributor[]>([]);
   const [owner, setOwner] = useState<Contributor | null>(null);
-  const [registration, setRegistration] = useState<HubRegistration | null>(
+  const [registration, setRegistration] = useState<ForgeRegistration | null>(
     null,
   );
   const [aboutDesc, setAboutDesc] = useState<string | null>(aboutText);
@@ -2463,7 +2464,7 @@ function TreeView({
           <section className="gh-side-block">
             <h3>Browse mode</h3>
             <p className="muted tiny">
-              Tip-pack browse — GitAtlas loads tipped packs only (not a full
+              Tip-pack browse — {brand.displayName} loads tipped packs only (not a full
               history clone). Issues / PRs / Actions are not on Freenet yet.
             </p>
           </section>
@@ -2796,7 +2797,7 @@ function BlobView({
                 ) : (
                   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
                   // href={freenetNodeRawFileHref(...)} — needs non-stock freenet git-raw
-                  // NEW CODE - TESTING: GitAtlas /?raw=… (any stock node)
+                  // NEW CODE - TESTING: GitForge /?raw=… (any stock node)
                   <a
                     className="gh-file-action-btn"
                     href={freenetRawFileHref(rawHref)}
@@ -2957,6 +2958,6 @@ function TagsView({
 // OLD CODE - KEEP UNTIL CONFIRMED WORKING
 // function ReleasesView(...) { ... tags presented as GitHub Releases ... }
 // function ReleaseDetailView(...) { ... }
-// Removed: GitAtlas should not fake Releases from git tags. See
+// Removed: GitForge should not fake Releases from git tags. See
 // docs/12-future-releases-actions.md. No /releases routes (404).
 

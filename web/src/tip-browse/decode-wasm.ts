@@ -1,5 +1,5 @@
 /**
- * Load freenet-hub-decode wasm (RepoState / tip / chunked-manifest helpers).
+ * Load freenet-forge-decode wasm (RepoState / tip / chunked-manifest helpers).
  */
 
 export interface TipBundle {
@@ -41,8 +41,8 @@ async function loadWasm(): Promise<DecodeWasm> {
   if (!wasmPromise) {
     wasmPromise = (async () => {
       // Built artifact: copy from decode-wasm/pkg after `npm run build:wasm`
-      const mod = await import("../wasm/freenet_hub_decode.js");
-      const wasmUrl = new URL("../wasm/freenet_hub_decode_bg.wasm", import.meta.url);
+      const mod = await import("../wasm/freenet_forge_decode.js");
+      const wasmUrl = new URL("../wasm/freenet_forge_decode_bg.wasm", import.meta.url);
       // OLD CODE - KEEP UNTIL CONFIRMED WORKING
       // await mod.default(wasmUrl);
       // NEW CODE - TESTING: wasm-bindgen wants a single options object

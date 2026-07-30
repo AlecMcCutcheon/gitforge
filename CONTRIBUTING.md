@@ -1,4 +1,4 @@
-# Contributing to GitAtlas
+# Contributing to GitForge
 
 We welcome contributions. Reviewer attention is scarce, and code is cheap to
 generate — so design discussion happens **before** large PRs.
@@ -89,7 +89,7 @@ When opening a feature issue, please address (briefly):
 2. **Approach** — intended UX / API shape; alternatives considered.
 3. **Freenet shape** — does this assume only demand hosting, vault, delegates,
    tip packs, or something new on the node?
-4. **Identity & trust** — node-operator trust vs app hub-identity; never spend
+4. **Identity & trust** — node-operator trust vs app forge-identity; never spend
    the user’s node resources from ungated website code.
 5. **Data & compatibility** — Hub contract / vault schema changes; migration
    or dual-read plan.
@@ -112,7 +112,7 @@ unrelated drive-bys, or hardcoded local paths may be closed.
 
 ## Getting Help
 
-- [Issues](https://github.com/AlecMcCutcheon/gitatlas/issues) — bugs and
+- [Issues](https://github.com/AlecMcCutcheon/gitforge/issues) — bugs and
   feature / design discussion
 - [freenet-core contributing](https://github.com/freenet/freenet-core/blob/main/CONTRIBUTING.md)
   — if your change really belongs in the node

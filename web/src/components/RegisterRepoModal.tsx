@@ -1,11 +1,12 @@
 /**
- * Quick-register modal for an unregistered repo you already hold in hub-identity.
+ * Quick-register modal for an unregistered repo you already hold in forge-identity.
  * Used from the repo header Import button (not the full /import page).
  */
 import { useEffect, useState } from "react";
-import { api, type HubRegistration } from "../api";
+import { api, type ForgeRegistration } from "../api";
 import { FlashNotice } from "./FlashNotice";
 import { BusyLabel } from "./OperationStatus";
+import { brand, registryLabel } from "../lib/brand";
 
 export interface RegisterRepoModalProps {
   open: boolean;
@@ -13,7 +14,7 @@ export interface RegisterRepoModalProps {
   prefix: string;
   label: string;
   displayName: string;
-  onRegistered: (registration: HubRegistration) => void;
+  onRegistered: (registration: ForgeRegistration) => void;
 }
 
 export function RegisterRepoModal({
@@ -68,7 +69,7 @@ export function RegisterRepoModal({
         onClick={(e) => e.stopPropagation()}
       >
         <header className="gh-collab-modal-head">
-          <h2 id="gh-register-repo-title">Register on GitAtlas</h2>
+          <h2 id="gh-register-repo-title">Register on {brand.displayName}</h2>
           <button
             type="button"
             className="gh-collab-modal-close"
@@ -81,7 +82,7 @@ export function RegisterRepoModal({
         </header>
 
         <p className="muted">
-          List <strong>{displayName}</strong> on GitAtlasRegistry (GAR). The
+          List <strong>{displayName}</strong> on {registryLabel()}. The
           contract already exists on Freenet; this only adds the Discover
           listing.
         </p>
@@ -103,7 +104,7 @@ export function RegisterRepoModal({
             <span className="import-check-mark" aria-hidden>
               ✓
             </span>
-            Not yet on GitAtlasRegistry (GAR)
+            Not yet on {registryLabel()}
           </li>
         </ul>
 
@@ -130,7 +131,7 @@ export function RegisterRepoModal({
           >
             <BusyLabel
               busy={busy}
-              idleText="Register on GitAtlasRegistry (GAR)"
+              idleText={`Register on ${registryLabel()}`}
               busyText="Registering…"
             />
           </button>

@@ -1,19 +1,19 @@
-# GitAtlas
+# GitForge
 
-**GitAtlas** is a forge for git hosted on [Freenet](https://freenet.org) —
+**GitForge** is a forge for git hosted on [Freenet](https://freenet.org) —
 browse, publish, and collaborate without a central GitHub-style server.
 Repositories live as Freenet contracts via
-[`freenet-git`](https://github.com/freenet/freenet-git); GitAtlas is the UI
+[`freenet-git`](https://github.com/freenet/freenet-git); GitForge is the UI
 and the Hub contracts that make that usable day to day.
 
-![GitAtlas repository Code view — freenet-git tip-pack browse with About and Repo health](docs/images/repo-code-preview.png)
+![GitForge repository Code view — freenet-git tip-pack browse with About and Repo health](docs/images/repo-code-preview.png)
 
 ## Why it exists
 
 - **Decentralized forge UX** — Discover, profiles, stars, settings, and tip-pack
   Code browse against your local Freenet node.
 - **Identity you own** — Create / restore / download a freenet-git identity
-  bundle; HubVault and profile helpers ride with that identity, they are not a
+  bundle; ForgeVault and profile helpers ride with that identity, they are not a
   lock-in account.
 - **Publish to test** — The real surface is a Freenet website contract, not a
   local Express/Vite loop.
@@ -23,25 +23,25 @@ and the Hub contracts that make that usable day to day.
 | Area | What works |
 |------|------------|
 | **Website SPA** | Published Freenet website contract (`npm run publish:website`) |
-| **Discover** | Seed demos + HubRegistry listings (signed-in home) |
+| **Discover** | Seed demos + ForgeRegistry listings (signed-in home) |
 | **Identity** | Create, recovery phrase, import bundle, identity.bundle download, sign-out |
-| **HubVault** | Passwordless vault auto-provision; Settings → Sync (vault ↔ this node) |
+| **ForgeVault** | Passwordless vault auto-provision; Settings → Sync (vault ↔ this node) |
 | **Repos** | New empty repo, import, register on Hub, tip-pack Code / Commits / Tags / Branches |
-| **Stars** | HubStars contract; star / unstar; profile Stars tab |
+| **Stars** | ForgeStars contract; star / unstar; profile Stars tab |
 | **People** | Profile overview, repositories, stars |
 | **Languages** | Linguist-style sidebar bar over tip blobs |
 | **License / community files** | LICENSE detection and related helpers |
 | **Repo health** | Pack / Hub reachability + rescue paths |
 | **Inbox** | Profile inbox for system / invite-style messages |
-| **API keys** | Vault-scoped keys for CLI helpers (`gitatlas-vault`) |
-| **Repo CLI** | `gitatlas-repo` — about / register / unregister / rename / soft-delete via local delegate |
+| **API keys** | Vault-scoped keys for CLI helpers (`gitforge vault`) |
+| **Repo CLI** | `gitforge repo` — about / register / unregister / rename / soft-delete via local delegate |
 | **Downloads** | Re-export identity / related downloads from Settings |
 
 ## Design notes
 
 - **Identity bundle first** — The downloadable freenet-git CLI bundle is the
   main credential and offline recovery path.
-- **HubVault** — Sealed settings and repo keys sync with the signed-in identity
+- **ForgeVault** — Sealed settings and repo keys sync with the signed-in identity
   so a Freenet sandbox wipe does not erase your vault index. Sign-out clears
   the local session; signing back in with the same identity reattaches vault
   state when it is still on the network.
@@ -55,11 +55,11 @@ and the Hub contracts that make that usable day to day.
 ## Layout
 
 ```
-gitatlas/
+gitforge/
 ├── browse-tool/       # tip pack helper
 ├── decode-wasm/       # RepoState helpers for the browser
-├── contracts/         # HubRegistry, HubVault, HubStars, HubRepo, …
-├── delegates/         # hub-identity, hub-pages
+├── contracts/         # ForgeRegistry, ForgeVault, ForgeStars, ForgeRepo, …
+├── delegates/         # forge-identity, forge-pages
 ├── docs/                # architecture notes + preview images
 ├── freenet-linguist/  # language bar
 ├── freenet-licensee/  # LICENSE detection
@@ -79,8 +79,8 @@ gitatlas/
 ## Setup
 
 ```sh
-git clone https://github.com/AlecMcCutcheon/gitatlas.git
-cd gitatlas
+git clone https://github.com/AlecMcCutcheon/gitforge.git
+cd freenet-gitforge
 npm install
 ```
 
@@ -102,9 +102,9 @@ See [`docs/08-website-publish.md`](docs/08-website-publish.md).
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
-| `FREENET_HUB_WEBSITE_KEY` | `freenethub` | `fdev website` key name |
+| `GITFORGE_WEBSITE_KEY` | `gitforge` | `fdev website` key name |
 | `FREENET_WS_URL` | `ws://127.0.0.1:7509/v1/contract/command` | Node WS |
-| `FREENET_HUB_PAGES_BASE` | `http://127.0.0.1:7509/v1/contract/web` | Pages base URL |
+| `GITFORGE_PAGES_BASE` | `http://127.0.0.1:7509/v1/contract/web` | Pages base URL |
 
 ## Contributing
 
@@ -118,9 +118,9 @@ approval). See also [`AGENTS.md`](AGENTS.md) for layout and conventions.
 
 ## Docs
 
-[`docs/05-freenethub-content-architecture.md`](docs/05-freenethub-content-architecture.md),
-[`docs/06-hub-registry.md`](docs/06-hub-registry.md),
+[`docs/05-gitforge-content-architecture.md`](docs/05-gitforge-content-architecture.md),
+[`docs/06-forge-registry.md`](docs/06-forge-registry.md),
 [`docs/08-website-publish.md`](docs/08-website-publish.md),
-[`docs/09-hub-pages.md`](docs/09-hub-pages.md),
-[`docs/10-hub-vault-auth.md`](docs/10-hub-vault-auth.md),
-[`docs/11-hub-stars.md`](docs/11-hub-stars.md).
+[`docs/09-forge-pages.md`](docs/09-forge-pages.md),
+[`docs/10-forge-vault-auth.md`](docs/10-forge-vault-auth.md),
+[`docs/11-forge-stars.md`](docs/11-forge-stars.md).

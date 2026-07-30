@@ -9,12 +9,13 @@ import {
   getSessionVaultId,
   onAuthSessionChange,
 } from "../freenet/auth-api";
-import type { HubIdentityInfo } from "../freenet/owner-api";
+import type { ForgeIdentityInfo } from "../freenet/owner-api";
 import { PageLoadingOverlay } from "../components/PageLoadingOverlay";
 import { ProfileAvatar } from "../components/ProfileAvatar";
 import { repoHref } from "../lib/repo-path";
+import { registryLabel } from "../lib/brand";
 import { isBrowserNativeMode } from "../tip-browse";
-import { listLicenses } from "@freenet-hub/licensee";
+import { listLicenses } from "@gitforge/licensee";
 import { useDocumentTitle } from "../lib/document-title";
 
 function parseRepoPath(url: string): { prefix: string; label: string } | null {
@@ -36,7 +37,7 @@ export function NewRepoPage() {
   useDocumentTitle("New repository");
   const websiteMode = isBrowserNativeMode();
   const navigate = useNavigate();
-  const [identity, setIdentity] = useState<HubIdentityInfo | null>(() =>
+  const [identity, setIdentity] = useState<ForgeIdentityInfo | null>(() =>
     getCachedIdentity(),
   );
   const [sessionReady, setSessionReady] = useState(false);
@@ -157,7 +158,7 @@ export function NewRepoPage() {
             });
           } catch (err: unknown) {
             console.warn(
-              "[freenet-hub] create protect prompt failed",
+              "[freenet-forge] create protect prompt failed",
               err instanceof Error ? err.message : err,
             );
           }
@@ -359,7 +360,7 @@ export function NewRepoPage() {
             ) : (
               <p className="muted tiny">
                 Creates an empty repo contract on your node, registers it on
-                GitAtlasRegistry (GAR), then opens a first-commit editor when
+                {registryLabel()}, then opens a first-commit editor when
                 README or a license is selected.
               </p>
             )}

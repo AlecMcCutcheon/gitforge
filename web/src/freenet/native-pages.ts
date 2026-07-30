@@ -1,18 +1,18 @@
 /**
- * Freenet-native GitAtlas Pages: tip extract → pages-delegate sign → website Put
+ * Freenet-native GitForge Pages: tip extract → pages-delegate sign → website Put
  * → RepoState `pages` extension.
  */
 import { blake3 } from "@noble/hashes/blake3";
 import bs58 from "bs58";
 import { ContractKey } from "@freenetorg/freenet-stdlib";
-import type { HubPagesConfig } from "../api";
+import type { ForgePagesConfig } from "../api";
 import { sendDelegateMessage } from "./delegate-api";
 import {
-  HUB_IDENTITY_CODE_HASH_BYTES,
-  HUB_IDENTITY_KEY_BYTES,
-  hubOwnerContractsReady,
+  FORGE_IDENTITY_CODE_HASH_BYTES,
+  FORGE_IDENTITY_KEY_BYTES,
+  forgeOwnerContractsReady,
 } from "./owner-constants";
-import { hubPagesReady, HUB_PAGES_CODE_HASH_BYTES, HUB_PAGES_KEY_BYTES } from "./pages-constants";
+import { forgePagesReady, FORGE_PAGES_CODE_HASH_BYTES, FORGE_PAGES_KEY_BYTES } from "./pages-constants";
 import {
   extractSiteFromTip,
   tombstoneSiteFiles,
@@ -124,16 +124,16 @@ async function withIdentityDelegate(): Promise<{
   key: number[];
   codeHash: number[];
 }> {
-  if (!hubOwnerContractsReady()) {
+  if (!forgeOwnerContractsReady()) {
     throw new Error(
-      "Owner contracts not built — run scripts/build-hub-owner-tools.sh",
+      "Owner contracts not built — run scripts/build-forge-owner-tools.sh",
     );
   }
   const api = await getFreenetApi();
   return {
     api,
-    key: HUB_IDENTITY_KEY_BYTES,
-    codeHash: HUB_IDENTITY_CODE_HASH_BYTES,
+    key: FORGE_IDENTITY_KEY_BYTES,
+    codeHash: FORGE_IDENTITY_CODE_HASH_BYTES,
   };
 }
 
@@ -142,16 +142,16 @@ async function withPagesDelegate(): Promise<{
   key: number[];
   codeHash: number[];
 }> {
-  if (!hubPagesReady()) {
+  if (!forgePagesReady()) {
     throw new Error(
-      "Pages delegate not built — run scripts/build-hub-owner-tools.sh and publish hub-pages",
+      "Pages delegate not built — run scripts/build-forge-owner-tools.sh and publish forge-pages",
     );
   }
   const api = await getFreenetApi();
   return {
     api,
-    key: HUB_PAGES_KEY_BYTES,
-    codeHash: HUB_PAGES_CODE_HASH_BYTES,
+    key: FORGE_PAGES_KEY_BYTES,
+    codeHash: FORGE_PAGES_CODE_HASH_BYTES,
   };
 }
 
@@ -169,9 +169,9 @@ async function loadRepoPagesMeta(prefix: string): Promise<RepoPagesMeta | null> 
 
 /**
  * Pages Enable / Sync / Disable require:
- * 1. Signed-in GitAtlas identity
+ * 1. Signed-in GitForge identity
  * 2. Repo site key on that identity
- * 3. Live HubRegistry listing owned by that identity (registered on GitAtlas)
+ * 3. Live ForgeRegistry listing owned by that identity (registered on GitForge)
  */
 export async function assertPagesAuthority(prefix: string): Promise<{
   fingerprint: string;
@@ -181,26 +181,26 @@ export async function assertPagesAuthority(prefix: string): Promise<{
   const id = await nativeGetIdentity();
   if (!id?.fingerprint) {
     throw new Error(
-      "Sign in with a GitAtlas identity to manage Pages for this repository",
+      "Sign in with a GitForge identity to manage Pages for this repository",
     );
   }
   const localRepos = await nativeListRepos();
   if (!localRepos.some((r) => r.prefix === prefix)) {
     throw new Error(
-      "This repository’s site key is not on your identity — Import the key, then Register on GitAtlas before enabling Pages",
+      "This repository’s site key is not on your identity — Import the key, then Register on GitForge before enabling Pages",
     );
   }
-  const { fetchHubRegistry } = await import("./hub-registry");
-  const { repos } = await fetchHubRegistry();
+  const { fetchForgeRegistry } = await import("./forge-registry");
+  const { repos } = await fetchForgeRegistry();
   const listing = repos.find((r) => r.repo_prefix === prefix);
   if (!listing) {
     throw new Error(
-      "Repository must be registered on GitAtlas (Discover) before you can enable or update Pages",
+      "Repository must be registered on GitForge (Discover) before you can enable or update Pages",
     );
   }
   if (listing.identity_fingerprint !== id.fingerprint) {
     throw new Error(
-      "Only the GitAtlas registry owner for this repository can manage Pages",
+      "Only the GitForge registry owner for this repository can manage Pages",
     );
   }
   return { fingerprint: id.fingerprint, label: listing.label };
@@ -208,7 +208,7 @@ export async function assertPagesAuthority(prefix: string): Promise<{
 
 /**
  * Before unregister / soft-delete: if Pages is enabled, disable + tombstone the
- * website contract so lifecycle cannot leave a live GitAtlas site behind.
+ * website contract so lifecycle cannot leave a live GitForge site behind.
  */
 export async function ensurePagesTakenDown(prefix: string): Promise<void> {
   const meta = await loadRepoPagesMeta(prefix);
@@ -234,8 +234,8 @@ function metaToConfig(
   prefix: string,
   label: string,
   meta: RepoPagesMeta | null,
-  extras?: Partial<HubPagesConfig>,
-): HubPagesConfig {
+  extras?: Partial<ForgePagesConfig>,
+): ForgePagesConfig {
   const m = meta ?? emptyRepoPagesMeta();
   const autoSync = loadPagesAutoSync(prefix, true);
   const contractKey = m.contract_key;
@@ -262,7 +262,7 @@ export async function nativePagesStatus(
   prefix: string,
   label: string,
   autoSync = false,
-): Promise<HubPagesConfig> {
+): Promise<ForgePagesConfig> {
   const meta = await loadRepoPagesMeta(prefix);
   let cfg = metaToConfig(prefix, label, meta);
   if (autoSync && cfg.enabled && cfg.autoSync) {
@@ -452,7 +452,7 @@ export async function nativePagesEnable(
   prefix: string,
   label: string,
   body: { branch?: string; rootPath?: string; autoSync?: boolean } = {},
-): Promise<HubPagesConfig> {
+): Promise<ForgePagesConfig> {
   const auth = await assertPagesAuthority(prefix);
   const branch = (body.branch ?? "main").trim() || "main";
   const rootPath = (body.rootPath ?? "").trim();
@@ -502,7 +502,7 @@ export async function nativePagesEnable(
 export async function nativePagesSync(
   prefix: string,
   label: string,
-): Promise<HubPagesConfig> {
+): Promise<ForgePagesConfig> {
   const auth = await assertPagesAuthority(prefix);
   const existing = await loadRepoPagesMeta(prefix);
   if (!existing?.enabled || !existing.contract_key) {
@@ -538,7 +538,7 @@ export async function nativePagesDisable(
   prefix: string,
   label: string,
   body: { tombstone?: boolean; skipAuthorityCheck?: boolean } = {},
-): Promise<HubPagesConfig> {
+): Promise<ForgePagesConfig> {
   let fingerprint: string | null = null;
   if (!body.skipAuthorityCheck) {
     const auth = await assertPagesAuthority(prefix);
@@ -596,7 +596,7 @@ export interface ExportedPagesKey {
   verifying_key_hex?: string;
 }
 
-/** Export all pages website signing keys from pages-delegate (for HubVault). */
+/** Export all pages website signing keys from pages-delegate (for ForgeVault). */
 export async function nativeExportPagesKeys(): Promise<ExportedPagesKey[]> {
   const { api, key, codeHash } = await withPagesDelegate();
   const n = nonce();

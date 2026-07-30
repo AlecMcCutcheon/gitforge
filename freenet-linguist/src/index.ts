@@ -1,5 +1,5 @@
 /**
- * @freenet-hub/linguist — Freenet/GitAtlas language detection.
+ * @gitforge/linguist — Freenet/GitForge language detection.
  * Full strategy funnel aligned with github/linguist + go-enry.
  */
 export { analyzeFiles, analyzeFilesAsync, analyzeFilesPathOnly } from "./analyze";

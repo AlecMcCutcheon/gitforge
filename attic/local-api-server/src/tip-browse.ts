@@ -46,14 +46,14 @@ export interface TipBlobResult {
 }
 
 function tipBinaryPath(): string {
-  if (process.env.FREENET_HUB_TIP_BIN) {
-    return process.env.FREENET_HUB_TIP_BIN;
+  if (process.env.GITFORGE_TIP_BIN) {
+    return process.env.GITFORGE_TIP_BIN;
   }
   const here = path.dirname(fileURLToPath(import.meta.url));
   // Prefer workspace target (cargo --workspace), then browse-tool/target.
   const candidates = [
-    path.resolve(here, "../../target/release/freenet-hub-tip"),
-    path.resolve(here, "../../browse-tool/target/release/freenet-hub-tip"),
+    path.resolve(here, "../../target/release/freenet-forge-tip"),
+    path.resolve(here, "../../browse-tool/target/release/freenet-forge-tip"),
   ];
   for (const p of candidates) {
     try {
@@ -78,14 +78,14 @@ export interface TipMetaResult {
 /** GET RepoState only — works for empty repos (no tip pack). */
 export async function tipRepoMeta(prefix: string): Promise<TipMetaResult> {
   const bin = tipBinaryPath();
-  const timeoutMs = Number(process.env.FREENET_HUB_TIP_TIMEOUT_MS ?? 90_000);
+  const timeoutMs = Number(process.env.GITFORGE_TIP_TIMEOUT_MS ?? 90_000);
   const result = await runCommand(
     bin,
     ["meta", "--prefix", prefix, "--timeout-secs", String(Math.ceil(timeoutMs / 1000))],
     { timeoutMs },
   );
   if (result.code !== 0) {
-    throw new Error(result.stderr || result.stdout || "freenet-hub-tip meta failed");
+    throw new Error(result.stderr || result.stdout || "freenet-forge-tip meta failed");
   }
   const line = result.stdout
     .split("\n")
@@ -93,7 +93,7 @@ export async function tipRepoMeta(prefix: string): Promise<TipMetaResult> {
     .filter((l) => l.startsWith("{"))
     .pop();
   if (!line) {
-    throw new Error("freenet-hub-tip meta produced no JSON");
+    throw new Error("freenet-forge-tip meta produced no JSON");
   }
   const parsed = JSON.parse(line) as {
     prefix: string;
@@ -114,10 +114,10 @@ export async function tipRepoMeta(prefix: string): Promise<TipMetaResult> {
 }
 
 async function tipCacheRoot(): Promise<string> {
-  if (process.env.FREENET_HUB_TIP_CACHE) {
-    return path.resolve(process.env.FREENET_HUB_TIP_CACHE);
+  if (process.env.GITFORGE_TIP_CACHE) {
+    return path.resolve(process.env.GITFORGE_TIP_CACHE);
   }
-  // Sibling of repos cache: ~/.local/share/freenet-hub/tips
+  // Sibling of repos cache: ~/.local/share/freenet-gitforge/tips
   const reposRoot = await ensureCacheRoot();
   return path.join(path.dirname(reposRoot), "tips");
 }
@@ -128,8 +128,8 @@ export async function ensureTipPack(
 ): Promise<TipEnsureResult> {
   const bin = tipBinaryPath();
   const cache = await tipCacheRoot();
-  const timeoutMs = Number(process.env.FREENET_HUB_TIP_TIMEOUT_MS ?? 300_000);
-  const retries = Number(process.env.FREENET_HUB_TIP_RETRIES ?? 3);
+  const timeoutMs = Number(process.env.GITFORGE_TIP_TIMEOUT_MS ?? 300_000);
+  const retries = Number(process.env.GITFORGE_TIP_RETRIES ?? 3);
 
   const result = await runCommand(
     bin,
@@ -165,7 +165,7 @@ export async function ensureTipPack(
   const jsonLine = [...lines].reverse().find((l) => l.startsWith("{"));
   if (!jsonLine) {
     throw new Error(
-      `freenet-hub-tip produced no JSON (stderr: ${result.stderr.slice(0, 500)})`,
+      `freenet-forge-tip produced no JSON (stderr: ${result.stderr.slice(0, 500)})`,
     );
   }
   return JSON.parse(jsonLine) as TipEnsureResult;

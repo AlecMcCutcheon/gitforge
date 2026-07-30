@@ -1,4 +1,4 @@
-/** Shared types for @freenet-hub/licensee. */
+/** Shared types for @gitforge/licensee. */
 
 export interface LicenseMeta {
   key: string;

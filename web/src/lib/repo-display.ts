@@ -1,4 +1,4 @@
-/** Slug used as freenet URL label (matches hub-identity CreateRepo / rename). */
+/** Slug used as freenet URL label (matches forge-identity CreateRepo / rename). */
 export function slugRepoLabel(name: string): string {
   const trimmed = name.trim();
   if (!trimmed) return "repo";

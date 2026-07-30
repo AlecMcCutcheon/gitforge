@@ -1,12 +1,12 @@
 /**
  * Content-addressed repo backup: tip pack bytes + pin index.
- * Blobs are durable on the hub-identity delegate; IndexedDB/memory are mirrors.
+ * Blobs are durable on the forge-identity delegate; IndexedDB/memory are mirrors.
  * Shared by Stars + Repositories — one pin per repo_prefix; reasons dedupe star∩own.
  */
 
-import type { HubRegistration } from "../api";
+import type { ForgeRegistration } from "../api";
 import type { TipBundle } from "../tip-browse/decode-wasm";
-import type { HubRepoMetaStateJson } from "./hub-repo";
+import type { ForgeRepoMetaStateJson } from "./forge-repo";
 
 export type BackupReason = "star" | "own";
 
@@ -25,8 +25,8 @@ export interface RepoBackupPin {
   tipBundles: TipBundle[];
   /** Content hashes stored for the pinned tip (packs / manifests / chunks). */
   contentHashes: string[];
-  registry: HubRegistration | null;
-  repoMeta: HubRepoMetaStateJson | null;
+  registry: ForgeRegistration | null;
+  repoMeta: ForgeRepoMetaStateJson | null;
   pinnedAt: number;
   updatedAt: number;
   /** Wall time of last freshness / auto-worker check (persisted in identity). */
@@ -34,9 +34,9 @@ export interface RepoBackupPin {
 }
 
 /** Reserved pin prefix for backup prefs JSON in the identity secret. */
-export const BACKUP_PREFS_PIN_PREFIX = "__gitatlas_backup_prefs__";
+export const BACKUP_PREFS_PIN_PREFIX = "__gitforge_backup_prefs__";
 
-const DB_NAME = "freenethub-repo-backup";
+const DB_NAME = "gitforge-repo-backup";
 const BLOBS = "blobs";
 const PINS = "pins";
 const DB_VERSION = 1;
@@ -152,7 +152,7 @@ export async function backupGetBlob(
         return row;
       }
     } catch (err) {
-      console.warn("[freenet-hub] backupGetBlob failed; trying identity", err);
+      console.warn("[freenet-forge] backupGetBlob failed; trying identity", err);
       idbAvailable = false;
     }
   }
@@ -162,8 +162,8 @@ export async function backupGetBlob(
   try {
     const { isBrowserNativeMode } = await import("../tip-browse");
     if (!isBrowserNativeMode()) return null;
-    const { hubOwnerContractsReady } = await import("./owner-constants");
-    if (!hubOwnerContractsReady()) return null;
+    const { forgeOwnerContractsReady } = await import("./owner-constants");
+    if (!forgeOwnerContractsReady()) return null;
     const { nativeGetRepoBackupBlob } = await import("./owner-api");
     const bytes = await nativeGetRepoBackupBlob(key);
     if (!bytes || bytes.length === 0) return null;
@@ -191,7 +191,7 @@ export async function backupGetBlob(
     }
     return entry;
   } catch (err) {
-    console.warn("[freenet-hub] identity backup blob get failed", err);
+    console.warn("[freenet-forge] identity backup blob get failed", err);
     return null;
   }
 }
@@ -216,14 +216,14 @@ export async function backupPutBlob(
   try {
     const { isBrowserNativeMode } = await import("../tip-browse");
     if (isBrowserNativeMode()) {
-      const { hubOwnerContractsReady } = await import("./owner-constants");
-      if (hubOwnerContractsReady()) {
+      const { forgeOwnerContractsReady } = await import("./owner-constants");
+      if (forgeOwnerContractsReady()) {
         const { nativeUpsertRepoBackupBlob } = await import("./owner-api");
         await nativeUpsertRepoBackupBlob(key, bytes);
       }
     }
   } catch (err) {
-    console.warn("[freenet-hub] identity backup blob put failed", err);
+    console.warn("[freenet-forge] identity backup blob put failed", err);
     throw err instanceof Error
       ? err
       : new Error(String(err ?? "identity backup blob put failed"));
@@ -240,7 +240,7 @@ export async function backupPutBlob(
         tx.onerror = () => reject(tx.error);
       });
     } catch (err) {
-      console.warn("[freenet-hub] backupPutBlob IDB failed; kept in memory", err);
+      console.warn("[freenet-forge] backupPutBlob IDB failed; kept in memory", err);
       idbAvailable = false;
     }
   }
@@ -267,8 +267,8 @@ export async function backupCountPresentBlobs(
   try {
     const { isBrowserNativeMode } = await import("../tip-browse");
     if (isBrowserNativeMode()) {
-      const { hubOwnerContractsReady } = await import("./owner-constants");
-      if (hubOwnerContractsReady()) {
+      const { forgeOwnerContractsReady } = await import("./owner-constants");
+      if (forgeOwnerContractsReady()) {
         const { nativeListRepoBackupBlobHashes } = await import("./owner-api");
         const indexed = new Set(
           (await nativeListRepoBackupBlobHashes()).map((h) =>
@@ -286,7 +286,7 @@ export async function backupCountPresentBlobs(
     }
   } catch (err) {
     console.warn(
-      "[freenet-hub] durable blob audit via identity failed; local fallback",
+      "[freenet-forge] durable blob audit via identity failed; local fallback",
       err,
     );
   }
@@ -323,8 +323,8 @@ export async function backupGcUnreferencedBlobs(
   try {
     const { isBrowserNativeMode } = await import("../tip-browse");
     if (isBrowserNativeMode()) {
-      const { hubOwnerContractsReady } = await import("./owner-constants");
-      if (hubOwnerContractsReady()) {
+      const { forgeOwnerContractsReady } = await import("./owner-constants");
+      if (forgeOwnerContractsReady()) {
         const {
           nativeListRepoBackupBlobHashes,
           nativeRemoveRepoBackupBlob,
@@ -337,13 +337,13 @@ export async function backupGcUnreferencedBlobs(
             memoryBlobs.delete(h);
             removed += 1;
           } catch (err) {
-            console.warn("[freenet-hub] backup blob GC remove failed", h, err);
+            console.warn("[freenet-forge] backup blob GC remove failed", h, err);
           }
         }
       }
     }
   } catch (err) {
-    console.warn("[freenet-hub] backup blob GC failed", err);
+    console.warn("[freenet-forge] backup blob GC failed", err);
   }
 
   // Drop orphaned IDB blobs best-effort.
@@ -369,7 +369,7 @@ export async function backupGcUnreferencedBlobs(
         removed += 1;
       }
     } catch (err) {
-      console.warn("[freenet-hub] backup IDB blob GC failed", err);
+      console.warn("[freenet-forge] backup IDB blob GC failed", err);
     }
   }
   return removed;
@@ -396,7 +396,7 @@ export async function backupGetPin(
         return row;
       }
     } catch (err) {
-      console.warn("[freenet-hub] backupGetPin IDB failed", err);
+      console.warn("[freenet-forge] backupGetPin IDB failed", err);
       idbAvailable = false;
     }
   }
@@ -463,7 +463,7 @@ export async function backupPutPin(pin: RepoBackupPin): Promise<void> {
         tx.onerror = () => reject(tx.error);
       });
     } catch (err) {
-      console.warn("[freenet-hub] backupPutPin IDB failed; memory + identity", err);
+      console.warn("[freenet-forge] backupPutPin IDB failed; memory + identity", err);
       idbAvailable = false;
     }
   }
@@ -515,7 +515,7 @@ export async function backupClearPin(prefix: string): Promise<void> {
         tx.onerror = () => reject(tx.error);
       });
     } catch (err) {
-      console.warn("[freenet-hub] backupClearPin IDB failed", err);
+      console.warn("[freenet-forge] backupClearPin IDB failed", err);
       idbAvailable = false;
     }
   }
@@ -526,7 +526,7 @@ export async function backupClearPin(prefix: string): Promise<void> {
   try {
     await backupGcUnreferencedBlobs();
   } catch (err) {
-    console.warn("[freenet-hub] backup blob GC after clear failed", err);
+    console.warn("[freenet-forge] backup blob GC after clear failed", err);
   }
 }
 
@@ -543,7 +543,7 @@ export async function backupListPins(): Promise<RepoBackupPin[]> {
       });
       for (const row of rows) memoryPins.set(row.prefix, row);
     } catch (err) {
-      console.warn("[freenet-hub] backupListPins IDB failed", err);
+      console.warn("[freenet-forge] backupListPins IDB failed", err);
       idbAvailable = false;
     }
   }
@@ -587,8 +587,8 @@ async function hydratePinsFromIdentity(): Promise<void> {
     try {
       const { isBrowserNativeMode } = await import("../tip-browse");
       if (!isBrowserNativeMode()) return;
-      const { hubOwnerContractsReady } = await import("./owner-constants");
-      if (!hubOwnerContractsReady()) return;
+      const { forgeOwnerContractsReady } = await import("./owner-constants");
+      if (!forgeOwnerContractsReady()) return;
       const { nativeListRepoBackupPins } = await import("./owner-api");
       const rows = await nativeListRepoBackupPins();
       for (const raw of rows) {
@@ -608,7 +608,7 @@ async function hydratePinsFromIdentity(): Promise<void> {
         }
       }
     } catch (err) {
-      console.warn("[freenet-hub] identity backup hydrate failed", err);
+      console.warn("[freenet-forge] identity backup hydrate failed", err);
       // Allow retry later (e.g. identity not ready yet).
       identityHydrate = null;
     }
@@ -619,9 +619,9 @@ async function hydratePinsFromIdentity(): Promise<void> {
 async function persistPinToIdentity(pin: RepoBackupPin): Promise<void> {
   const { isBrowserNativeMode } = await import("../tip-browse");
   if (!isBrowserNativeMode()) return;
-  const { hubOwnerContractsReady } = await import("./owner-constants");
-  if (!hubOwnerContractsReady()) {
-    throw new Error("Owner identity not ready — rebuild/publish hub-identity");
+  const { forgeOwnerContractsReady } = await import("./owner-constants");
+  if (!forgeOwnerContractsReady()) {
+    throw new Error("Owner identity not ready — rebuild/publish forge-identity");
   }
   const { nativeUpsertRepoBackupPin } = await import("./owner-api");
   await nativeUpsertRepoBackupPin(pinForIdentityStore(pin));
@@ -636,11 +636,11 @@ async function removePinFromIdentity(
   try {
     const { isBrowserNativeMode } = await import("../tip-browse");
     if (!isBrowserNativeMode()) return;
-    const { hubOwnerContractsReady } = await import("./owner-constants");
-    if (!hubOwnerContractsReady()) return;
+    const { forgeOwnerContractsReady } = await import("./owner-constants");
+    if (!forgeOwnerContractsReady()) return;
     const { nativeRemoveRepoBackupPin } = await import("./owner-api");
     await nativeRemoveRepoBackupPin(prefix, reason);
   } catch (err) {
-    console.warn("[freenet-hub] identity backup remove failed", err);
+    console.warn("[freenet-forge] identity backup remove failed", err);
   }
 }

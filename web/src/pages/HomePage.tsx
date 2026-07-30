@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "../spa-link";
-import { api, type DemoRepo, type HubRegistration } from "../api";
+import { api, type DemoRepo, type ForgeRegistration } from "../api";
 import { StarCountBadge } from "../components/StarButton";
 import { PersonName } from "../components/PersonName";
 import { EMBEDDED_DEMOS } from "../demos";
@@ -17,10 +17,11 @@ import {
 import { resolvePersonRef } from "../freenet/people-resolve";
 import { prefetchPersonDisplayNames } from "../freenet/person-display";
 import {
-  parseHubRepoRef,
+  parseForgeRepoRef,
   repoHref,
   repoPathDisplay,
 } from "../lib/repo-path";
+import { brand, registryLabel } from "../lib/brand";
 import { isBrowserNativeMode } from "../tip-browse";
 import { useDocumentTitle } from "../lib/document-title";
 
@@ -29,7 +30,7 @@ export function HomePage() {
   const navigate = useNavigate();
   const websiteMode = isBrowserNativeMode();
   const [demos, setDemos] = useState<DemoRepo[]>(EMBEDDED_DEMOS as DemoRepo[]);
-  const [registered, setRegistered] = useState<HubRegistration[]>(
+  const [registered, setRegistered] = useState<ForgeRegistration[]>(
     () => peekCachedRegistry() ?? [],
   );
   const [registryLoading, setRegistryLoading] = useState(
@@ -75,7 +76,7 @@ export function HomePage() {
         setRegistered(reg.repos);
         storeCachedRegistry(reg.repos);
         setRegistryNote(reg.note ?? null);
-        // NEW CODE - TESTING: warm HubProfile usernames for Discover cards
+        // NEW CODE - TESTING: warm ForgeProfile usernames for Discover cards
         void prefetchPersonDisplayNames(
           reg.repos.map((r) => r.identity_fingerprint),
         );
@@ -109,7 +110,7 @@ export function HomePage() {
       });
       return;
     }
-    const parsed = parseHubRepoRef(trimmed);
+    const parsed = parseForgeRepoRef(trimmed);
     if (!parsed) {
       setError(
         "Use freenet::prefix/label, freenet:id:…, or fingerprint words (apple-banana-…)",
@@ -127,7 +128,7 @@ export function HomePage() {
 
   const seedPrefixes = new Set(
     demos
-      .map((d) => parseHubRepoRef(d.url)?.prefix)
+      .map((d) => parseForgeRepoRef(d.url)?.prefix)
       .filter((p): p is string => Boolean(p)),
   );
   const registryOnly = registered.filter(
@@ -139,7 +140,7 @@ export function HomePage() {
   return (
     <main className="page">
       <section className="hero-panel">
-        <h1>GitAtlas</h1>
+        <h1>{brand.displayName}</h1>
         <p>
           Browse Freenet-hosted git repositories. Open a repo like GitHub —
           files and commits load from Freenet on demand.
@@ -159,10 +160,10 @@ export function HomePage() {
 
       <section className="panel">
         <h2>Official repositories</h2>
-        <p className="lede">Always-visible Freenet mirrors curated for GitAtlas.</p>
+        <p className="lede">Always-visible Freenet mirrors curated for {brand.displayName}.</p>
         <ul className="repo-cards">
           {demos.map((demo) => {
-            const parsed = parseHubRepoRef(demo.url);
+            const parsed = parseForgeRepoRef(demo.url);
             if (!parsed) return null;
             return (
               <li key={demo.url}>
@@ -182,17 +183,17 @@ export function HomePage() {
       </section>
 
       <section className="panel">
-        <h2>GitAtlasRegistry (GAR)</h2>
+        <h2>{registryLabel()}</h2>
         <p className="lede">
-          Public listings registered on GitAtlasRegistry — additive to official
+          Public listings registered on {brand.registryName} — additive to official
           repositories.
           {registryNote ? ` ${registryNote}` : null}
         </p>
         {registryLoading && registryOnly.length === 0 ? (
-          <p className="muted">Loading GitAtlasRegistry…</p>
+          <p className="muted">Loading {brand.registryName}…</p>
         ) : registryOnly.length === 0 ? (
           <p className="muted">
-            No GAR registrations yet. Create a repo from{" "}
+            No {brand.registryAbbrev} registrations yet. Create a repo from{" "}
             <Link to="/new">New repository</Link>
             {" "}or{" "}
             <Link to="/import">Import repository</Link>
@@ -235,7 +236,7 @@ export function HomePage() {
           <h2>Recently opened</h2>
           <ul className="repo-cards">
             {cached.map((repo) => {
-              const parsed = repo.remote ? parseHubRepoRef(repo.remote) : null;
+              const parsed = repo.remote ? parseForgeRepoRef(repo.remote) : null;
               if (!parsed) return null;
               return (
                 <li key={repo.cacheKey}>
@@ -258,5 +259,5 @@ export function HomePage() {
   );
 }
 
-/** Signed-in dashboard (official + GitAtlasRegistry / GAR listings). */
+/** Signed-in dashboard (official + GitForge Registry / GFR listings). */
 export { HomePage as DiscoverPage };

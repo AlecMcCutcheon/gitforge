@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { api, type HubPagesConfig, type RepoPageData } from "../api";
+import { api, type ForgePagesConfig, type RepoPageData } from "../api";
 import { isBrowserNativeMode } from "../tip-browse";
 import { invalidateRegistryCache, removeCachedRegistryEntry } from "../freenet/discover-cache";
 import { clearRepoTipCaches } from "../freenet/native-api";
@@ -12,11 +12,11 @@ import {
   sendRepoInvite,
   type PersonSearchHit,
 } from "../freenet/repo-invite";
-import { fetchHubProfile } from "../freenet/hub-profile";
+import { fetchForgeProfile } from "../freenet/forge-profile";
 import {
-  fetchHubRegistry,
-  type HubRegistryPendingInviteOp,
-} from "../freenet/hub-registry";
+  fetchForgeRegistry,
+  type ForgeRegistryPendingInviteOp,
+} from "../freenet/forge-registry";
 import { fingerprintWordsJoined } from "../freenet/fingerprint-words";
 import {
   getCachedIdentity,
@@ -25,6 +25,7 @@ import {
 import { nativeCancelPendingInvite } from "../freenet/owner-api";
 import type { RepoHrefOpts } from "../lib/repo-path";
 import { repoHref } from "../lib/repo-path";
+import { brand, registryLabel } from "../lib/brand";
 import { repoDisplayName, slugRepoLabel } from "../lib/repo-display";
 import { CantEditRepoPanel } from "../components/CantEditRepoPanel";
 import { FlashNotice } from "../components/FlashNotice";
@@ -128,9 +129,9 @@ interface RepoSettingsViewProps {
   ownerOpts: RepoHrefOpts;
   repo: RepoPageData;
   isOwner: boolean;
-  /** Listed on GitAtlas registry (required for Settings). */
+  /** Listed on GitForge registry (required for Settings). */
   registered: boolean;
-  /** Session identity matches HubRegistry identity_fingerprint. */
+  /** Session identity matches ForgeRegistry identity_fingerprint. */
   isRegistryOwner: boolean;
 }
 
@@ -199,7 +200,7 @@ export function RepoSettingsView({
   const defaultBranch =
     repo.defaultBranch?.replace(/^refs\/heads\//, "") || "main";
 
-  const [pages, setPages] = useState<HubPagesConfig | null>(null);
+  const [pages, setPages] = useState<ForgePagesConfig | null>(null);
   const [pagesBranch, setPagesBranch] = useState(defaultBranch);
   const [pagesRoot, setPagesRoot] = useState("");
   const [pagesBusy, setPagesBusy] = useState(false);
@@ -225,12 +226,12 @@ export function RepoSettingsView({
     if (!websiteMode || !prefix || !isOwner) return;
     let cancelled = false;
     // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-    // Always setProvisioning(true) — blocked Settings UI while HubRepoMeta Put
+    // Always setProvisioning(true) — blocked Settings UI while ForgeRepoMeta Put
     // hung/timed out even when already registered.
     // NEW CODE - TESTING: registered → background ensure only; unregistered waits
     if (registered) {
       setProvisionedOk(true);
-      void import("../freenet/hub-repo")
+      void import("../freenet/forge-repo")
         .then(({ ensureOwnerRepoSideContracts }) =>
           ensureOwnerRepoSideContracts({
             prefix,
@@ -248,7 +249,7 @@ export function RepoSettingsView({
       return;
     }
     setProvisioning(true);
-    void import("../freenet/hub-repo")
+    void import("../freenet/forge-repo")
       .then(({ ensureOwnerRepoSideContracts }) =>
         ensureOwnerRepoSideContracts({
           prefix,
@@ -304,7 +305,7 @@ export function RepoSettingsView({
   const [inviteStep, setInviteStep] = useState<string | null>(null);
   const [inviteNote, setInviteNote] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
-  // NEW CODE - TESTING: verified contributors from HubRegistry
+  // NEW CODE - TESTING: verified contributors from ForgeRegistry
   const [ownerFingerprint, setOwnerFingerprint] = useState<string | null>(null);
   const [contributorFps, setContributorFps] = useState<Set<string>>(
     () => new Set(),
@@ -319,7 +320,7 @@ export function RepoSettingsView({
   >([]);
   const [pendingInvites, setPendingInvites] = useState<
     Array<
-      HubRegistryPendingInviteOp & {
+      ForgeRegistryPendingInviteOp & {
         username: string;
         avatar: string;
         wordSlug: string;
@@ -383,7 +384,7 @@ export function RepoSettingsView({
     setCollabLoading(true);
     void (async () => {
       try {
-        const registry = await fetchHubRegistry();
+        const registry = await fetchForgeRegistry();
         if (cancelled) return;
         const listing = registry.repos.find((r) => r.repo_prefix === prefix);
         const ownerFp = listing?.identity_fingerprint ?? null;
@@ -404,7 +405,7 @@ export function RepoSettingsView({
           role: "Owner" | "Contributor";
         }> = [];
         if (ownerFp) {
-          const profile = await fetchHubProfile(ownerFp).catch(() => null);
+          const profile = await fetchForgeProfile(ownerFp).catch(() => null);
           rows.push({
             fingerprint: ownerFp,
             username: profile?.username || "Owner",
@@ -413,7 +414,7 @@ export function RepoSettingsView({
           });
         }
         for (const fp of fps) {
-          const profile = await fetchHubProfile(fp).catch(() => null);
+          const profile = await fetchForgeProfile(fp).catch(() => null);
           rows.push({
             fingerprint: fp,
             username: profile?.username || fingerprintWordsJoined(fp),
@@ -422,14 +423,14 @@ export function RepoSettingsView({
           });
         }
         const pendingRows: Array<
-          HubRegistryPendingInviteOp & {
+          ForgeRegistryPendingInviteOp & {
             username: string;
             avatar: string;
             wordSlug: string;
           }
         > = [];
         for (const op of pendingOps) {
-          const profile = await fetchHubProfile(op.identity_fingerprint).catch(
+          const profile = await fetchForgeProfile(op.identity_fingerprint).catch(
             () => null,
           );
           pendingRows.push({
@@ -463,7 +464,7 @@ export function RepoSettingsView({
 
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // pending from localStorage + owner inbox decline notices
-  // NEW CODE - TESTING: pending_invites from HubRegistry
+  // NEW CODE - TESTING: pending_invites from ForgeRegistry
 
   useEffect(() => {
     // OLD CODE - KEEP UNTIL CONFIRMED WORKING
@@ -607,7 +608,7 @@ export function RepoSettingsView({
     })();
   };
 
-  // NEW CODE - TESTING: registry-only remove (keep RepoState + hub-identity key)
+  // NEW CODE - TESTING: registry-only remove (keep RepoState + forge-identity key)
   const onUnregister = (e: FormEvent) => {
     e.preventDefault();
     if (!unregisterNameOk || unregisterBusy || !isRegistryOwner) return;
@@ -619,7 +620,7 @@ export function RepoSettingsView({
         await api.unregisterRepo(prefix, (reg?.seq ?? 0) + 1);
         // OLD CODE - KEEP UNTIL CONFIRMED WORKING
         // invalidateRegistryCache();
-        // navigate(…) — HubRegistry GET often still returned the listing
+        // navigate(…) — ForgeRegistry GET often still returned the listing
         // NEW CODE - TESTING: tombstone cache + nav flag so UI is Unregistered immediately
         removeCachedRegistryEntry(prefix);
         navigate(repoHref(prefix, label, "", ownerOpts), {
@@ -634,7 +635,7 @@ export function RepoSettingsView({
     })();
   };
 
-  const runPages = async (fn: () => Promise<HubPagesConfig>) => {
+  const runPages = async (fn: () => Promise<ForgePagesConfig>) => {
     setPagesBusy(true);
     setPagesError(null);
     // NEW CODE - TESTING: publishing until Enable/Sync Put succeeds
@@ -662,7 +663,7 @@ export function RepoSettingsView({
           <header className="gh-repo-settings-header">
             <h1>Preparing settings…</h1>
             <p className="muted">
-              Creating missing GitAtlas contracts for this repository (registry
+              Creating missing {brand.displayName} contracts for this repository (registry
               listing and repo settings).
             </p>
           </header>
@@ -674,8 +675,8 @@ export function RepoSettingsView({
         <header className="gh-repo-settings-header">
           <h1>Settings unavailable</h1>
           <p className="muted">
-            Register this repository on GitAtlas first. Settings (delete,
-            collaborators, and other GitAtlas-only controls) are gated by the
+            Register this repository on {brand.displayName} first. Settings (delete,
+            collaborators, and other {brand.displayName}-only controls) are gated by the
             registry owner fingerprint.
           </p>
         </header>
@@ -796,7 +797,7 @@ export function RepoSettingsView({
                 <p className="muted tiny gh-repo-settings-help">
                   Signed on the Freenet repo contract as{" "}
                   <code>RepoState.name</code>. The contract key{" "}
-                  <span className="mono">{prefix}</span> stays fixed. GitAtlas
+                  <span className="mono">{prefix}</span> stays fixed. {brand.displayName}
                   URLs use the name (slug{" "}
                   <span className="mono">
                     {prefix}/{previewLabel}
@@ -845,16 +846,16 @@ export function RepoSettingsView({
                   <div className="gh-danger-row">
                     <div className="gh-danger-copy">
                       <strong className="gh-danger-row-title">
-                        Unregister from GitAtlas
+                        Unregister from {brand.displayName}
                       </strong>
                       <p className="muted tiny">
-                        Remove this repository from GitAtlasRegistry (GAR)
+                        Remove this repository from {registryLabel()}
                         Discover and People listings only. The Freenet repo
                         contract and your local identity key are kept — use
                         Import to list it again. If Pages is enabled, it is
                         disabled and the website is taken down first.
                         {!isRegistryOwner
-                          ? " Only the GitAtlas registry owner can unregister."
+                          ? ` Only the ${brand.displayName} registry owner can unregister.`
                           : null}
                       </p>
                     </div>
@@ -879,7 +880,7 @@ export function RepoSettingsView({
                         type="button"
                         className="gh-danger-btn"
                         disabled
-                        title="Only the identity that registered this repo on GitAtlas can unregister it"
+                        title={`Only the identity that registered this repo on ${brand.displayName} can unregister it`}
                       >
                         Unregister
                       </button>
@@ -890,7 +891,7 @@ export function RepoSettingsView({
                     <div className="gh-danger-confirm">
                       <p className="muted tiny">
                         Type <strong>{displayName}</strong> to confirm. This
-                        only clears the HubRegistry listing — it does not
+                        only clears the ForgeRegistry listing — it does not
                         soft-delete the repo or remove your local key. Enabled
                         Pages will be disabled (website tombstoned) first.
                       </p>
@@ -923,7 +924,7 @@ export function RepoSettingsView({
                           >
                             {unregisterBusy
                               ? "Unregistering…"
-                              : "Unregister from GitAtlas"}
+                              : `Unregister from ${brand.displayName}`}
                           </button>
                           <button
                             type="button"
@@ -949,13 +950,13 @@ export function RepoSettingsView({
                       </strong>
                       <p className="muted tiny">
                         Soft-delete marks the freenet-git contract abandoned and
-                        removes it from GitAtlasRegistry (GAR). Freenet cannot
+                        removes it from {registryLabel()}. Freenet cannot
                         wipe historical packs from every peer. If Pages is
                         enabled, it is disabled and the website is taken down
                         first. Once you delete a repository, there is no going
                         back. Please be certain.
                         {!isRegistryOwner
-                          ? " Only the GitAtlas registry owner can delete."
+                          ? ` Only the ${brand.displayName} registry owner can delete.`
                           : null}
                       </p>
                     </div>
@@ -977,7 +978,7 @@ export function RepoSettingsView({
                         type="button"
                         className="gh-danger-btn"
                         disabled
-                        title="Only the identity that registered this repo on GitAtlas can delete it"
+                        title={`Only the identity that registered this repo on ${brand.displayName} can delete it`}
                       >
                         Delete this repository
                       </button>
@@ -993,7 +994,7 @@ export function RepoSettingsView({
                           : ""}
                         .
                         {!websiteMode
-                          ? " Bridge mode only unregisters from the local HubRegistry file."
+                          ? " Bridge mode only unregisters from the local ForgeRegistry file."
                           : null}
                       </p>
                     </div>
@@ -1003,7 +1004,7 @@ export function RepoSettingsView({
                         Type <strong>{displayName}</strong> to confirm. This
                         publishes a <code>deleted</code> extension and{" "}
                         <code>[deleted]</code> description, then unregisters
-                        from HubRegistry.
+                        from ForgeRegistry.
                       </p>
                       {error ? (
                         <div className="error-banner">{error}</div>
@@ -1083,12 +1084,12 @@ export function RepoSettingsView({
                     <div className="gh-pages-panel-row">
                       <div>
                         <h2 className="gh-repo-settings-section-title">
-                          GitAtlas website Pages
+                          {brand.displayName} website Pages
                         </h2>
                         <p className="muted tiny gh-repo-settings-help">
                           Publish a Freenet website from this tip. Enable /
-                          Sync / Disable require your GitAtlas identity to own
-                          the HubRegistry listing for this repo. Unregister and
+                          Sync / Disable require your {brand.displayName} identity to own
+                          the ForgeRegistry listing for this repo. Unregister and
                           delete take Pages down first when enabled.
                         </p>
                       </div>
@@ -1159,8 +1160,8 @@ export function RepoSettingsView({
                     {!registered || !isRegistryOwner ? (
                       <p className="muted tiny">
                         {!registered
-                          ? "Register this repository on GitAtlas before enabling Pages."
-                          : "Only the GitAtlas registry owner can enable, sync, or disable Pages."}
+                          ? `Register this repository on ${brand.displayName} before enabling Pages.`
+                          : `Only the ${brand.displayName} registry owner can enable, sync, or disable Pages.`}
                       </p>
                     ) : !pages?.enabled ? (
                       <div className="gh-pages-enable-form">
@@ -1259,7 +1260,7 @@ export function RepoSettingsView({
                     <strong>Public repository</strong>
                     <p className="muted tiny">
                       This repository is public and visible to anyone on
-                      GitAtlas Discover.
+                      {brand.displayName} Discover.
                     </p>
                   </div>
                 </div>
@@ -1333,7 +1334,7 @@ export function RepoSettingsView({
                       title={
                         isRegistryOwner
                           ? undefined
-                          : "Only the GitAtlas registry owner can invite collaborators"
+                          : `Only the ${brand.displayName} registry owner can invite collaborators`
                       }
                       onClick={openAddPeople}
                     >
@@ -1346,7 +1347,7 @@ export function RepoSettingsView({
                   <p className="muted tiny gh-repo-settings-help">
                     {isVerifiedContributor
                       ? "You are a verified contributor. Invites stay with the registry owner. You can leave below to drop your grant and site key."
-                      : "Invites and delete are reserved for the identity listed as owner on the GitAtlas registry."}
+                      : `Invites and delete are reserved for the identity listed as owner on the ${brand.displayName} registry.`}
                   </p>
                 ) : null}
 
@@ -1384,7 +1385,7 @@ export function RepoSettingsView({
                       title={
                         isRegistryOwner
                           ? undefined
-                          : "Only the GitAtlas registry owner can invite collaborators"
+                          : `Only the ${brand.displayName} registry owner can invite collaborators`
                       }
                       onClick={openAddPeople}
                     >
@@ -1469,7 +1470,7 @@ export function RepoSettingsView({
                               <button
                                 type="button"
                                 className="gh-collab-row-danger"
-                                title="Cancel invitation on HubRegistry"
+                                title="Cancel invitation on ForgeRegistry"
                                 aria-label={`Cancel invite for ${p.username}`}
                                 disabled={
                                   cancelInviteBusy === p.identity_fingerprint
@@ -1477,7 +1478,7 @@ export function RepoSettingsView({
                                 onClick={() => {
                                   if (
                                     !window.confirm(
-                                      `Cancel pending invite for ${p.username}? This removes it from HubRegistry. They may still have a sealed inbox message until they decline or you ask them to ignore it.`,
+                                      `Cancel pending invite for ${p.username}? This removes it from ForgeRegistry. They may still have a sealed inbox message until they decline or you ask them to ignore it.`,
                                     )
                                   ) {
                                     return;
@@ -1720,7 +1721,7 @@ export function RepoSettingsView({
                     !searchHit.inviteBlockedReason ? (
                       <p className="muted tiny">
                         This profile has no inbox_pk yet — they need to create
-                        or restore once on GitAtlas.
+                        or restore once on {brand.displayName}.
                       </p>
                     ) : null}
                     <OperationStatus

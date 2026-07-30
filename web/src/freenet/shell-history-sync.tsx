@@ -7,9 +7,9 @@
  */
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigationType } from "react-router-dom";
-import { gitatlasWebsiteBasename } from "./website-constants";
+import { forgeWebsiteBasename } from "./website-constants";
 
-const WEBSITE_BASE_CACHE_KEY = "freenethub.website.base";
+const WEBSITE_BASE_CACHE_KEY = "gitforge.website.base";
 
 export function freenetBasename(): string {
   const fromPath = window.location.pathname.match(
@@ -36,7 +36,7 @@ export function freenetBasename(): string {
     /* ignore */
   }
   // NEW CODE - TESTING: baked publish key so Raw/new-tab URLs never hit node root
-  return gitatlasWebsiteBasename();
+  return forgeWebsiteBasename();
 }
 
 /** Absolute gateway path for the current SPA location (Discover ends with `/`). */

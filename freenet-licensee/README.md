@@ -9,7 +9,7 @@ placeholder fill (`[year]`, `[fullname]`, …).
 
 ```bash
 # _ref/licensee should point at a licensee checkout (vendor/choosealicense.com)
-npm run gen:catalog -w @freenet-hub/licensee
+npm run gen:catalog -w @gitforge/licensee
 ```
 
 ## Usage
@@ -20,5 +20,5 @@ import {
   generateLicense,
   discoverCommunityFiles,
   listLicenses,
-} from "@freenet-hub/licensee";
+} from "@gitforge/licensee";
 ```

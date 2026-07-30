@@ -101,7 +101,7 @@ function notifyUpdateNotification(key: ContractKey): void {
     try {
       listener(key);
     } catch (e) {
-      console.warn("[freenet-hub] update-notif listener error:", e);
+      console.warn("[freenet-forge] update-notif listener error:", e);
     }
   }
 }
@@ -114,7 +114,7 @@ function notifyConnDrop(code: number, reason: string): void {
     try {
       listener(err);
     } catch (e) {
-      console.warn("[freenet-hub] conn-drop listener error:", e);
+      console.warn("[freenet-forge] conn-drop listener error:", e);
     }
   }
 }
@@ -125,7 +125,7 @@ function notifyHostError(cause: string): void {
     try {
       listener(err);
     } catch (e) {
-      console.warn("[freenet-hub] host-err listener error:", e);
+      console.warn("[freenet-forge] host-err listener error:", e);
     }
   }
 }
@@ -139,7 +139,7 @@ function noopHandler(): ResponseHandler {
     onContractNotFound: (_id: Uint8Array) => {},
     onDelegateResponse: (_r: DelegateResponse) => {},
     onErr: (err: HostError) => {
-      console.warn("[freenet-hub] host error:", err.cause);
+      console.warn("[freenet-forge] host error:", err.cause);
       notifyHostError(
         typeof err.cause === "string" ? err.cause : String(err.cause),
       );
@@ -201,7 +201,7 @@ async function openFreenetConn(): Promise<Conn> {
         try {
           listener(payloads);
         } catch (e) {
-          console.warn("[freenet-hub] delegate listener error:", e);
+          console.warn("[freenet-forge] delegate listener error:", e);
         }
       }
     },
@@ -210,13 +210,13 @@ async function openFreenetConn(): Promise<Conn> {
       notifyUpdateNotification(n.key);
     },
     onErr: (err: HostError) => {
-      console.warn("[freenet-hub] host error:", err.cause);
+      console.warn("[freenet-forge] host error:", err.cause);
       notifyHostError(
         typeof err.cause === "string" ? err.cause : String(err.cause),
       );
     },
     onClose: (code, reason) => {
-      console.warn("[freenet-hub] ws closed", code, reason);
+      console.warn("[freenet-forge] ws closed", code, reason);
       closedBeforeReady = true;
       // OLD CODE - KEEP UNTIL CONFIRMED WORKING
       // if (activeApi) { conn = null; if (connecting) connecting = null; }
@@ -582,7 +582,7 @@ async function runOneContractGet(job: QueuedGet): Promise<Uint8Array> {
         // so the rest of the queue fails fast instead of brick-locking the UI.
         transportCooldownUntil = Date.now() + 2_500;
         console.warn(
-          "[freenet-hub] WS connect timed out — failing this GET without long retries",
+          "[freenet-forge] WS connect timed out — failing this GET without long retries",
           err instanceof Error ? err.message : err,
         );
         break;
@@ -590,7 +590,7 @@ async function runOneContractGet(job: QueuedGet): Promise<Uint8Array> {
 
       if (!isWsDropError(err) || attempt === attempts) break;
       console.warn(
-        `[freenet-hub] GET failed (attempt ${attempt}/${attempts}), reconnecting:`,
+        `[freenet-forge] GET failed (attempt ${attempt}/${attempts}), reconnecting:`,
         err instanceof Error ? err.message : err,
       );
       try {
@@ -662,7 +662,7 @@ export async function tryGetContractState(
     //   timeoutMs: SOFT_GET_TIMEOUT_MS,
     //   maxAttempts: 1,
     // });
-    // NEW CODE - TESTING: allow shorter miss timeouts (e.g. optional HubRepoMeta)
+    // NEW CODE - TESTING: allow shorter miss timeouts (e.g. optional ForgeRepoMeta)
     return await getContractState(key, {
       priority: "low",
       timeoutMs: opts?.timeoutMs ?? SOFT_GET_TIMEOUT_MS,
@@ -751,7 +751,7 @@ async function awaitWriteOrNotification(
             const got = typedResponseKeyId(resp);
             if (got && got !== contractKeyId(expectKey)) {
               console.warn(
-                "[freenet-hub] ignoring stale write response for",
+                "[freenet-forge] ignoring stale write response for",
                 got.slice(0, 16),
                 "want",
                 contractKeyId(expectKey).slice(0, 16),
@@ -805,7 +805,7 @@ export async function putContract(
           isHardWsDropError(err) || isStaleWriteKeyError(err);
         if (!retry || attempt === WRITE_MAX_ATTEMPTS) break;
         console.warn(
-          `[freenet-hub] Put failed (attempt ${attempt}/${WRITE_MAX_ATTEMPTS}), reconnecting:`,
+          `[freenet-forge] Put failed (attempt ${attempt}/${WRITE_MAX_ATTEMPTS}), reconnecting:`,
           err instanceof Error ? err.message : err,
         );
         resetFreenetConn();
@@ -839,7 +839,7 @@ export async function updateContract(
           isHardWsDropError(err) || isStaleWriteKeyError(err);
         if (!retry || attempt === WRITE_MAX_ATTEMPTS) break;
         console.warn(
-          `[freenet-hub] Update failed (attempt ${attempt}/${WRITE_MAX_ATTEMPTS}), reconnecting:`,
+          `[freenet-forge] Update failed (attempt ${attempt}/${WRITE_MAX_ATTEMPTS}), reconnecting:`,
           err instanceof Error ? err.message : err,
         );
         resetFreenetConn();

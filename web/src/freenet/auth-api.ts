@@ -1,5 +1,5 @@
 /**
- * High-level identity + GitAtlas vault account flows.
+ * High-level identity + GitForge vault account flows.
  * Login is local Freenet identity (create / bundle / recovery phrase / node session).
  * Vault is auto-provisioned (passwordless) and syncs via identity_dek_wrap.
  */
@@ -14,12 +14,12 @@ import {
   openFreenetGitIdentityBundle,
   sealFreenetGitIdentityBundle,
 } from "./freenet-git-bundle";
-import { fetchHubVault, putOrUpdateHubVault } from "./hub-vault";
+import { fetchForgeVault, putOrUpdateForgeVault } from "./forge-vault";
 import {
-  fetchHubProfile,
-  publishHubProfile,
-  type HubProfileStateJson,
-} from "./hub-profile";
+  fetchForgeProfile,
+  publishForgeProfile,
+  type ForgeProfileStateJson,
+} from "./forge-profile";
 import {
   clearCachedInbox,
   inboxPkHexFromSeedHex,
@@ -42,7 +42,7 @@ import {
   nativeRemoveContributor,
   nativeRemoveRepoKey,
   nativeSignVault,
-  type HubIdentityInfo,
+  type ForgeIdentityInfo,
 } from "./owner-api";
 import { randomBytes, bytesToHex } from "@noble/hashes/utils";
 import {
@@ -73,7 +73,7 @@ import {
   VAULT_SCHEMA_VERSION,
   wrapApiKeyPayload,
   type AuthorizedOps,
-  type HubVaultPublicState,
+  type ForgeVaultPublicState,
   type IdentityDekWrap,
   type PagesEnvelopePlaintext,
   type ReposEnvelopePlaintext,
@@ -86,13 +86,13 @@ import {
 // type VaultPlaintext — password-unlock plaintext blob
 // totp + password helpers (assertVaultPassword, encryptVaultPlaintext, …)
 
-const SESSION_VAULT_ID_KEY = "freenethub.vault.id";
-const SESSION_IDENTITY_KEY = "freenethub.vault.identity";
-const SESSION_NEEDS_TOTP_KEY = "freenethub.vault.needs_totp";
+const SESSION_VAULT_ID_KEY = "gitforge.vault.id";
+const SESSION_IDENTITY_KEY = "gitforge.vault.identity";
+const SESSION_NEEDS_TOTP_KEY = "gitforge.vault.needs_totp";
 
 /** Freenet `__sandbox=1` often denies sessionStorage; keep a tab-lifetime mirror. */
 let memoryVaultId: string | null = null;
-let memoryIdentity: HubIdentityInfo | null = null;
+let memoryIdentity: ForgeIdentityInfo | null = null;
 let memoryVaultNeedsTotpEnroll = false;
 // NEW CODE - TESTING: keep seed in memory so inbox refresh doesn't need a
 // fresh ExportIdentity round-trip (WS 1006 was killing inbox loads).
@@ -172,7 +172,7 @@ function setCachedProfile(profile: CachedProfile | null): void {
 
 export interface IdentityExportBundle {
   v: 1;
-  kind: "freenethub-identity-export";
+  kind: "gitforge-identity-export";
   secret_key: string;
   fingerprint: string;
   name: string;
@@ -208,11 +208,11 @@ function setSessionVaultId(vaultId: string | null): void {
   notifyAuthSession();
 }
 
-export function getCachedIdentity(): HubIdentityInfo | null {
+export function getCachedIdentity(): ForgeIdentityInfo | null {
   try {
     const raw = sessionStorage.getItem(SESSION_IDENTITY_KEY);
     if (raw) {
-      const data = JSON.parse(raw) as HubIdentityInfo;
+      const data = JSON.parse(raw) as ForgeIdentityInfo;
       if (data?.fingerprint && data.name) {
         memoryIdentity = data;
         return data;
@@ -224,13 +224,15 @@ export function getCachedIdentity(): HubIdentityInfo | null {
   return memoryIdentity;
 }
 
-function setCachedIdentity(id: HubIdentityInfo | null): void {
+function setCachedIdentity(id: ForgeIdentityInfo | null): void {
   memoryIdentity = id;
   // NEW CODE - TESTING: drop seed when signed out
   if (!id) setCachedSeedHex(null);
   try {
     if (id) sessionStorage.setItem(SESSION_IDENTITY_KEY, JSON.stringify(id));
-    else sessionStorage.removeItem(SESSION_IDENTITY_KEY);
+    else {
+      sessionStorage.removeItem(SESSION_IDENTITY_KEY);
+    }
   } catch {
     /* ignore — memoryIdentity still set */
   }
@@ -252,7 +254,9 @@ function setVaultNeedsTotpEnroll(needs: boolean): void {
   memoryVaultNeedsTotpEnroll = needs;
   try {
     if (needs) sessionStorage.setItem(SESSION_NEEDS_TOTP_KEY, "1");
-    else sessionStorage.removeItem(SESSION_NEEDS_TOTP_KEY);
+    else {
+      sessionStorage.removeItem(SESSION_NEEDS_TOTP_KEY);
+    }
   } catch {
     /* ignore */
   }
@@ -280,14 +284,14 @@ export async function ensureSessionVaultId(): Promise<string | null> {
   }
 }
 
-/** True when a Freenet HubVault ciphertext already exists for this vault address. */
+/** True when a Freenet ForgeVault ciphertext already exists for this vault address. */
 export async function probeVaultBackupEnabled(
   vaultId?: string | null,
 ): Promise<boolean> {
   const id = vaultId ? normalizeVaultId(vaultId) : getSessionVaultId();
   if (!id) return false;
   try {
-    const state = await fetchHubVault(id);
+    const state = await fetchForgeVault(id);
     return Boolean(state?.identity_dek_wrap?.blob_b64);
   } catch {
     return false;
@@ -318,7 +322,7 @@ async function buildSignedVaultState(input: {
   /** When set, keep this wrap instead of sealing a new one. */
   identity_dek_wrap?: IdentityDekWrap;
   envelope_deks?: Record<string, string>;
-}): Promise<HubVaultPublicState> {
+}): Promise<ForgeVaultPublicState> {
   const vault_id = normalizeVaultId(input.vault_id);
   const deks = { ...(input.envelope_deks ?? {}) };
   const reposDek = deks[ENVELOPE_REPOS] || generateEnvelopeDekHex();
@@ -410,17 +414,17 @@ async function buildSignedVaultState(input: {
  * Updates repos and/or pages; mints pages DEK when missing (v4 additive).
  */
 async function buildOwnerEnvelopesUpdate(input: {
-  state: HubVaultPublicState;
+  state: ForgeVaultPublicState;
   reposMap?: Record<string, { secret_hex: string; label: string }>;
   pagesMap?: Record<string, { secret_hex: string; label: string }>;
   settingsPlain?: SettingsEnvelopePlaintext;
   deks: Record<string, string>;
   seedHex?: string;
-}): Promise<HubVaultPublicState> {
+}): Promise<ForgeVaultPublicState> {
   const state = input.state;
   if (!state.identity_dek_wrap?.blob_b64) {
     throw new Error(
-      "GitAtlas vault required — ensure account contracts after sign-in",
+      "GitForge vault required — ensure account contracts after sign-in",
     );
   }
   const deks = { ...input.deks };
@@ -514,10 +518,10 @@ async function buildOwnerEnvelopesUpdate(input: {
 
 // OLD CODE - KEEP UNTIL CONFIRMED WORKING
 // async function buildOwnerReposEnvelopeUpdate(input: {
-//   state: HubVaultPublicState;
+//   state: ForgeVaultPublicState;
 //   reposMap: Record<string, { secret_hex: string; label: string }>;
 //   deks: Record<string, string>;
-// }): Promise<HubVaultPublicState> {
+// }): Promise<ForgeVaultPublicState> {
 //   return buildOwnerEnvelopesUpdate({
 //     state: input.state,
 //     reposMap: input.reposMap,
@@ -526,7 +530,7 @@ async function buildOwnerEnvelopesUpdate(input: {
 // }
 
 async function loadVaultSecretsViaIdentityWrap(
-  state: HubVaultPublicState,
+  state: ForgeVaultPublicState,
 ): Promise<{
   deks: Record<string, string>;
   repos: Record<string, { secret_hex: string; label: string }>;
@@ -535,7 +539,7 @@ async function loadVaultSecretsViaIdentityWrap(
 }> {
   if (!state.identity_dek_wrap?.blob_b64) {
     throw new Error(
-      "GitAtlas vault required — ensure account contracts after sign-in",
+      "GitForge vault required — ensure account contracts after sign-in",
     );
   }
   const exported = await nativeExportIdentity();
@@ -584,7 +588,7 @@ async function loadVaultSecretsViaIdentityWrap(
 }
 
 async function loadReposViaIdentityWrap(
-  state: HubVaultPublicState,
+  state: ForgeVaultPublicState,
 ): Promise<{
   deks: Record<string, string>;
   repos: Record<string, { secret_hex: string; label: string }>;
@@ -595,7 +599,7 @@ async function loadReposViaIdentityWrap(
 
 // OLD CODE - KEEP UNTIL CONFIRMED WORKING
 // async function loadReposFromVaultState(
-//   state: HubVaultPublicState,
+//   state: ForgeVaultPublicState,
 //   plain: VaultPlaintext,
 // ): Promise<Record<string, { secret_hex: string; label: string }>> {
 //   const dek = plain.envelope_deks?.[ENVELOPE_REPOS];
@@ -629,7 +633,7 @@ export interface VaultDelegateSyncStatus {
   vault_id: string | null;
   /** Prefixes only on the local delegate (repos). */
   only_delegate: string[];
-  /** Prefixes only in HubVault (repos). */
+  /** Prefixes only in ForgeVault (repos). */
   only_vault: string[];
   /** Same prefix, different secret_hex (repos). */
   secret_mismatch: string[];
@@ -719,7 +723,7 @@ async function collectPagesMap(): Promise<
 }
 
 /**
- * Compare local hub-identity repo keys + pages-delegate keys with HubVault.
+ * Compare local forge-identity repo keys + pages-delegate keys with ForgeVault.
  * Uses the signed-in identity SK + identity_dek_wrap (no vault password).
  */
 export async function compareVaultAndDelegate(): Promise<VaultDelegateSyncStatus> {
@@ -745,7 +749,7 @@ export async function compareVaultAndDelegate(): Promise<VaultDelegateSyncStatus
     };
   }
   const delegate = delegateEarly;
-  const state = await fetchHubVault(vault_id).catch(() => null);
+  const state = await fetchForgeVault(vault_id).catch(() => null);
   if (!state?.identity_dek_wrap?.blob_b64) {
     return {
       kind: "no_vault",
@@ -780,7 +784,7 @@ export async function compareVaultAndDelegate(): Promise<VaultDelegateSyncStatus
   };
 }
 
-/** Push current delegate repo + pages keys into HubVault (owner-signed). */
+/** Push current delegate repo + pages keys into ForgeVault (owner-signed). */
 export async function pushDelegateReposToVault(): Promise<{
   vault_id: string;
   seq: number;
@@ -789,9 +793,9 @@ export async function pushDelegateReposToVault(): Promise<{
   if (!vault_id) {
     throw new Error("enable Freenet vault backup first");
   }
-  const state = await fetchHubVault(vault_id);
+  const state = await fetchForgeVault(vault_id);
   if (!state?.identity_dek_wrap?.blob_b64) {
-    throw new Error("no GitAtlas vault found for this identity");
+    throw new Error("no GitForge vault found for this identity");
   }
   const secrets = await loadVaultSecretsViaIdentityWrap(state);
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
@@ -817,12 +821,12 @@ export async function pushDelegateReposToVault(): Promise<{
     settingsPlain,
     deks: secrets.deks,
   });
-  await putOrUpdateHubVault(vault_id, next);
+  await putOrUpdateForgeVault(vault_id, next);
   return { vault_id, seq: next.seq };
 }
 
 /**
- * Seal backup prefs into HubVault `settings` envelope (best-effort).
+ * Seal backup prefs into ForgeVault `settings` envelope (best-effort).
  * Called when the user toggles Settings → Backups.
  */
 export async function pushBackupPrefsToVault(
@@ -830,7 +834,7 @@ export async function pushBackupPrefsToVault(
 ): Promise<void> {
   const vault_id = getSessionVaultId() || (await ensureSessionVaultId().catch(() => null));
   if (!vault_id) return;
-  const state = await fetchHubVault(vault_id);
+  const state = await fetchForgeVault(vault_id);
   if (!state?.identity_dek_wrap?.blob_b64) return;
   const secrets = await loadVaultSecretsViaIdentityWrap(state);
   const settingsPlain: SettingsEnvelopePlaintext = {
@@ -843,18 +847,18 @@ export async function pushBackupPrefsToVault(
     settingsPlain,
     deks: secrets.deks,
   });
-  await putOrUpdateHubVault(vault_id, next);
+  await putOrUpdateForgeVault(vault_id, next);
 }
 
 /**
- * Seal Protect prefs + remembered scopes into HubVault `settings` (best-effort).
+ * Seal Protect prefs + remembered scopes into ForgeVault `settings` (best-effort).
  */
 export async function pushProtectIntentToVault(
   intent: SettingsEnvelopePlaintext["local_protect"],
 ): Promise<void> {
   const vault_id = getSessionVaultId() || (await ensureSessionVaultId().catch(() => null));
   if (!vault_id) return;
-  const state = await fetchHubVault(vault_id);
+  const state = await fetchForgeVault(vault_id);
   if (!state?.identity_dek_wrap?.blob_b64) return;
   const secrets = await loadVaultSecretsViaIdentityWrap(state);
   const settingsPlain: SettingsEnvelopePlaintext = {
@@ -867,7 +871,7 @@ export async function pushProtectIntentToVault(
     settingsPlain,
     deks: secrets.deks,
   });
-  await putOrUpdateHubVault(vault_id, next);
+  await putOrUpdateForgeVault(vault_id, next);
 }
 
 /** Read `settings.repo_backup` from the account vault (null if missing). */
@@ -876,7 +880,7 @@ export async function pullBackupPrefsFromVault(): Promise<
 > {
   const vault_id = getSessionVaultId() || (await ensureSessionVaultId().catch(() => null));
   if (!vault_id) return null;
-  const state = await fetchHubVault(vault_id);
+  const state = await fetchForgeVault(vault_id);
   if (!state?.identity_dek_wrap?.blob_b64) return null;
   const secrets = await loadVaultSecretsViaIdentityWrap(state);
   const rb = secrets.settings?.repo_backup;
@@ -890,7 +894,7 @@ export async function pullProtectIntentFromVault(): Promise<
 > {
   const vault_id = getSessionVaultId() || (await ensureSessionVaultId().catch(() => null));
   if (!vault_id) return null;
-  const state = await fetchHubVault(vault_id);
+  const state = await fetchForgeVault(vault_id);
   if (!state?.identity_dek_wrap?.blob_b64) return null;
   const secrets = await loadVaultSecretsViaIdentityWrap(state);
   const lp = secrets.settings?.local_protect;
@@ -899,7 +903,7 @@ export async function pullProtectIntentFromVault(): Promise<
 }
 
 /**
- * Pull HubVault repos + pages into local delegates.
+ * Pull ForgeVault repos + pages into local delegates.
  * Does not remove local-only keys — use for delegate_behind / filling gaps.
  */
 export async function pullVaultReposToDelegate(input?: {
@@ -911,9 +915,9 @@ export async function pullVaultReposToDelegate(input?: {
   if (!vault_id) {
     throw new Error("enable Freenet vault backup first");
   }
-  const state = await fetchHubVault(vault_id);
+  const state = await fetchForgeVault(vault_id);
   if (!state?.identity_dek_wrap?.blob_b64) {
-    throw new Error("no GitAtlas vault found for this identity");
+    throw new Error("no GitForge vault found for this identity");
   }
   const secrets = await loadVaultSecretsViaIdentityWrap(state);
   const before = await collectReposMap();
@@ -1011,7 +1015,7 @@ export async function pullVaultReposToDelegate(input?: {
 // async function applyPlaintextToDelegate(
 //   plain: VaultPlaintext,
 //   reposMap?: Record<string, { secret_hex: string; label: string }>,
-// ): Promise<HubIdentityInfo> { … password-unlock import path … }
+// ): Promise<ForgeIdentityInfo> { … password-unlock import path … }
 // NEW CODE - TESTING: restore uses nativeImportIdentity + ensureAccountContracts
 
 function sanitizeBackupStem(alias: string): string | null {
@@ -1031,7 +1035,7 @@ export function identityBackupFilename(
   const stem =
     sanitizeBackupStem(name) ??
     fingerprintWords(fingerprint).slice(0, 2).join("-");
-  return `gitatlas-identity-${stem}.json`;
+  return `gitforge-identity-${stem}.json`;
 }
 
 export function downloadJsonFile(filename: string, data: unknown): void {
@@ -1062,9 +1066,9 @@ export function downloadBytesFile(
   downloadBlob(filename, new Blob([copy.buffer], { type: mime }));
 }
 
-function cacheFromHubProfile(
+function cacheFromForgeProfile(
   vault_id: string,
-  profile: HubProfileStateJson,
+  profile: ForgeProfileStateJson,
   public_email_fallback: string,
 ): void {
   setCachedProfile({
@@ -1077,21 +1081,21 @@ function cacheFromHubProfile(
 }
 
 /**
- * Load HubProfile for this fingerprint, or publish one from username/contact.
+ * Load ForgeProfile for this fingerprint, or publish one from username/contact.
  * Create always publishes; restore prefers an existing profile so UI/delegate stay in sync.
  */
-async function ensureHubProfilePublished(input: {
-  identity: HubIdentityInfo;
+async function ensureForgeProfilePublished(input: {
+  identity: ForgeIdentityInfo;
   vault_id: string;
   username: string;
   email: string;
-}): Promise<HubIdentityInfo> {
+}): Promise<ForgeIdentityInfo> {
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // .catch(() => null) swallowed Connection closed: 1006 → forced Put of wasm
   // NEW CODE - TESTING: only treat missing profile as absent
-  let existing: HubProfileStateJson | null = null;
+  let existing: ForgeProfileStateJson | null = null;
   try {
-    existing = await fetchHubProfile(input.identity.fingerprint, {
+    existing = await fetchForgeProfile(input.identity.fingerprint, {
       reliable: true,
     });
   } catch (err) {
@@ -1099,7 +1103,7 @@ async function ensureHubProfilePublished(input: {
     // One clean reconnect then re-check before deciding to Put.
     const { resetFreenetConn } = await import("./ws");
     resetFreenetConn();
-    existing = await fetchHubProfile(input.identity.fingerprint, {
+    existing = await fetchForgeProfile(input.identity.fingerprint, {
       reliable: true,
     });
   }
@@ -1127,7 +1131,7 @@ async function ensureHubProfilePublished(input: {
       try {
         const exported = await nativeExportIdentity();
         const inbox_pk = inboxPkHexFromSeedHex(exported.secret_key);
-        await publishHubProfile({
+        await publishForgeProfile({
           username,
           public_email: email,
           bio: existing.bio || "",
@@ -1140,7 +1144,7 @@ async function ensureHubProfilePublished(input: {
         console.warn("[auth] inbox_pk backfill failed:", e);
       }
     }
-    cacheFromHubProfile(input.vault_id, existing, email);
+    cacheFromForgeProfile(input.vault_id, existing, email);
     return identity;
   }
   let inbox_pk = "";
@@ -1150,7 +1154,7 @@ async function ensureHubProfilePublished(input: {
   } catch (e) {
     console.warn("[auth] inbox_pk derive failed:", e);
   }
-  await publishHubProfile({
+  await publishForgeProfile({
     username: input.username,
     public_email: input.email,
     bio: "",
@@ -1174,7 +1178,7 @@ async function refreshInboxFromProfile(
   seedHex: string,
 ): Promise<void> {
   try {
-    const profile = await fetchHubProfile(fingerprint, { reliable: true });
+    const profile = await fetchForgeProfile(fingerprint, { reliable: true });
     if (!profile?.inbox_messages?.length) {
       setCachedInboxMessages([]);
       return;
@@ -1213,15 +1217,15 @@ async function refreshInboxFromProfile(
  * syncFromVault: "pull" after recovery phrase; "none" after create/bundle.
  */
 export async function ensureAccountContracts(input: {
-  identity: HubIdentityInfo;
+  identity: ForgeIdentityInfo;
   vault_id: string;
   username: string;
   email: string;
   syncFromVault: "pull" | "none";
   onStatus?: (msg: string) => void;
-}): Promise<HubIdentityInfo> {
+}): Promise<ForgeIdentityInfo> {
   input.onStatus?.("Publishing profile (and inbox)…");
-  let identity = await ensureHubProfilePublished({
+  let identity = await ensureForgeProfilePublished({
     identity: input.identity,
     vault_id: input.vault_id,
     username: input.username,
@@ -1285,7 +1289,7 @@ export async function ensureAccountContracts(input: {
 }
 
 /**
- * When signed in but HubVault ciphertext is missing (interrupted create/restore
+ * When signed in but ForgeVault ciphertext is missing (interrupted create/restore
  * or failed Put), re-attempt ensure with retries. Safe no-op if vault exists.
  */
 export async function ensureSignedInAccountVault(opts?: {
@@ -1345,7 +1349,7 @@ export async function ensurePasswordlessVault(input: {
   seedHex: string;
 }): Promise<void> {
   const vault_id = normalizeVaultId(input.vault_id);
-  const existing = await fetchHubVault(vault_id).catch(() => null);
+  const existing = await fetchForgeVault(vault_id).catch(() => null);
   if (existing?.identity_dek_wrap?.blob_b64) {
     setSessionVaultId(vault_id);
     return;
@@ -1359,7 +1363,7 @@ export async function ensurePasswordlessVault(input: {
     reposMap,
     seq: 1,
   });
-  await putOrUpdateHubVault(vault_id, state);
+  await putOrUpdateForgeVault(vault_id, state);
   setSessionVaultId(vault_id);
 }
 
@@ -1372,7 +1376,7 @@ export { listInboxPlaintexts };
  *
  * Contact string (`email` wire field) defaults to the six-word fingerprint slug
  * from the new fingerprint — git-author style metadata, not an inbox address.
- * Also publishes HubProfile (username + contact) so restore can find it later.
+ * Also publishes ForgeProfile (username + contact) so restore can find it later.
  */
 export async function createIdentity(input: {
   username: string;
@@ -1380,7 +1384,7 @@ export async function createIdentity(input: {
   email?: string;
   onStatus?: (msg: string) => void;
 }): Promise<{
-  identity: HubIdentityInfo;
+  identity: ForgeIdentityInfo;
   vault_id: string;
   fingerprint_words: string[];
   /** freenet-git CLI identity bundle — primary backup. */
@@ -1409,7 +1413,7 @@ export async function createIdentity(input: {
   setCachedSeedHex(seed_hex);
   setVaultNeedsTotpEnroll(false);
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-  // identity = await ensureHubProfilePublished(...); // no vault Put
+  // identity = await ensureForgeProfilePublished(...); // no vault Put
   // NEW CODE - TESTING: profile + passwordless vault; no vault→delegate pull
   identity = await ensureAccountContracts({
     identity,
@@ -1453,32 +1457,32 @@ export async function createIdentity(input: {
 /**
  * Import a freenet-git `git-identity.bundle` (same file as CLI
  * `import-identity` / `init-identity` export).
- * Prefer an existing HubProfile for username/contact; publish one if missing.
+ * Prefer an existing ForgeProfile for username/contact; publish one if missing.
  */
 export async function importFreenetGitIdentityBundle(input: {
   bytes: Uint8Array;
   passphrase: string;
   onStatus?: (msg: string) => void;
-}): Promise<HubIdentityInfo> {
+}): Promise<ForgeIdentityInfo> {
   input.onStatus?.("Opening identity bundle…");
   const opened = openFreenetGitIdentityBundle(input.bytes, input.passphrase);
   const fallbackEmail = opened.email.trim()
     ? normalizeEmail(opened.email) || opened.email.trim()
     : defaultContactFromFingerprint(opened.fingerprint);
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-  // Always imported bundle name/email only — never looked up HubProfile.
-  // NEW CODE - TESTING: HubProfile is source of truth when present
+  // Always imported bundle name/email only — never looked up ForgeProfile.
+  // NEW CODE - TESTING: ForgeProfile is source of truth when present
   input.onStatus?.("Looking up public profile…");
-  let existingProfile: HubProfileStateJson | null = null;
+  let existingProfile: ForgeProfileStateJson | null = null;
   try {
-    existingProfile = await fetchHubProfile(opened.fingerprint, {
+    existingProfile = await fetchForgeProfile(opened.fingerprint, {
       reliable: true,
     });
   } catch (err) {
     if (!isWsDropError(err)) throw err;
     const { resetFreenetConn } = await import("./ws");
     resetFreenetConn();
-    existingProfile = await fetchHubProfile(opened.fingerprint, {
+    existingProfile = await fetchForgeProfile(opened.fingerprint, {
       reliable: true,
     });
   }
@@ -1525,7 +1529,7 @@ export async function importFreenetGitIdentityBundle(input: {
  * While signed in: merge freenet-git bundle repo keys into the local delegate
  * when the bundle fingerprint matches. Refuse a different identity.
  *
- * HubVault auto-update: if vault backup is enabled, compare vault↔delegate
+ * ForgeVault auto-update: if vault backup is enabled, compare vault↔delegate
  * **before** the merge (via identity_dek_wrap). Auto-push to vault only when
  * they were already `in_sync`. If there was drift/conflict, the delegate still
  * receives new keys but vault is left alone for the user to resolve in Settings.
@@ -1537,7 +1541,7 @@ export async function mergeFreenetGitIdentityBundle(input: {
   // vaultPassword?: string;
   // totpCode?: string;
 }): Promise<{
-  identity: HubIdentityInfo;
+  identity: ForgeIdentityInfo;
   imported: number;
   skipped: number;
   vaultUpdated: boolean;
@@ -1609,7 +1613,7 @@ export async function mergeFreenetGitIdentityBundle(input: {
 export async function listVaultApiKeys(): Promise<VaultApiKeyWrap[]> {
   const vault_id = getSessionVaultId() || (await ensureSessionVaultId());
   if (!vault_id) return [];
-  const state = await fetchHubVault(vault_id).catch(() => null);
+  const state = await fetchForgeVault(vault_id).catch(() => null);
   return state?.api_key_wraps ?? [];
 }
 
@@ -1624,11 +1628,11 @@ export async function mintVaultApiKey(input: {
 }): Promise<{ apiKey: string; wrap: VaultApiKeyWrap; vault_id: string }> {
   const vault_id = getSessionVaultId() || (await ensureSessionVaultId());
   if (!vault_id) {
-    throw new Error("GitAtlas vault required before minting API keys");
+    throw new Error("GitForge vault required before minting API keys");
   }
-  const state = await fetchHubVault(vault_id);
+  const state = await fetchForgeVault(vault_id);
   if (!state?.identity_dek_wrap?.blob_b64) {
-    throw new Error("GitAtlas vault required before minting API keys");
+    throw new Error("GitForge vault required before minting API keys");
   }
   const exported = await nativeExportIdentity();
   const { deks, repos } = await loadReposViaIdentityWrap(state);
@@ -1675,7 +1679,7 @@ export async function mintVaultApiKey(input: {
     identity_dek_wrap: state.identity_dek_wrap,
     envelope_deks: deks,
   });
-  await putOrUpdateHubVault(vault_id, next);
+  await putOrUpdateForgeVault(vault_id, next);
   return { apiKey, wrap, vault_id };
 }
 
@@ -1683,10 +1687,10 @@ export async function revokeVaultApiKey(input: {
   id: string;
 }): Promise<void> {
   const vault_id = getSessionVaultId() || (await ensureSessionVaultId());
-  if (!vault_id) throw new Error("GitAtlas vault required");
-  const state = await fetchHubVault(vault_id);
+  if (!vault_id) throw new Error("GitForge vault required");
+  const state = await fetchForgeVault(vault_id);
   if (!state?.identity_dek_wrap?.blob_b64) {
-    throw new Error("GitAtlas vault required");
+    throw new Error("GitForge vault required");
   }
   const exported = await nativeExportIdentity();
   const { deks, repos } = await loadReposViaIdentityWrap(state);
@@ -1706,23 +1710,23 @@ export async function revokeVaultApiKey(input: {
     identity_dek_wrap: state.identity_dek_wrap,
     envelope_deks: deks,
   });
-  await putOrUpdateHubVault(vault_id, next);
+  await putOrUpdateForgeVault(vault_id, next);
 }
 
 async function unlockReposEnvelopeWithApiKey(input: {
   vault_id: string;
   apiKey: string;
 }): Promise<{
-  state: HubVaultPublicState;
+  state: ForgeVaultPublicState;
   wrap: VaultApiKeyWrap;
   dek: string;
   ops_sk_hex: string;
   repos: Record<string, { secret_hex: string; label: string }>;
 }> {
   const vault_id = normalizeVaultId(input.vault_id);
-  const state = await fetchHubVault(vault_id);
+  const state = await fetchForgeVault(vault_id);
   if (!state?.identity_dek_wrap?.blob_b64) {
-    throw new Error("no GitAtlas vault for this vault id");
+    throw new Error("no GitForge vault for this vault id");
   }
   const wrap = findApiKeyWrap(state.api_key_wraps, input.apiKey);
   if (!wrap) throw new Error("API key not recognized for this vault");
@@ -1747,7 +1751,7 @@ export async function unlockVaultPlaintextWithApiKey(input: {
   vault_id: string;
   apiKey: string;
 }): Promise<{
-  state: HubVaultPublicState;
+  state: ForgeVaultPublicState;
   wrap: VaultApiKeyWrap;
   repos: Record<string, { secret_hex: string; label: string }>;
 }> {
@@ -1756,7 +1760,7 @@ export async function unlockVaultPlaintextWithApiKey(input: {
 }
 
 /**
- * Put / update HubVault for the current identity. Requires password ≥12 and
+ * Put / update ForgeVault for the current identity. Requires password ≥12 and
  * a confirmed TOTP secret (caller verifies a live code before calling).
  */
 /** @deprecated Password vault enable removed — use ensureAccountContracts. */
@@ -1786,7 +1790,7 @@ export async function unlockVault(_input: {
   vaultId: string;
   password: string;
   totpCode?: string;
-}): Promise<HubIdentityInfo> {
+}): Promise<ForgeIdentityInfo> {
   throw new Error(
     "Vault password unlock was removed. Restore with your identity bundle or recovery phrase.",
   );
@@ -1805,14 +1809,14 @@ export async function updatePublicProfile(input: {
   /** Optional pinned repo prefixes (public_meta.pinned). */
   pinnedPrefixes?: string[];
   onStatus?: (msg: string) => void;
-}): Promise<HubIdentityInfo> {
+}): Promise<ForgeIdentityInfo> {
   const vault_id = input.vault_id
     ? normalizeVaultId(input.vault_id)
     : getSessionVaultId() ?? "";
 
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // Required full form fields every save.
-  // NEW CODE - TESTING: allow pin/status-only updates (merge identity + HubProfile)
+  // NEW CODE - TESTING: allow pin/status-only updates (merge identity + ForgeProfile)
   input.onStatus?.("Updating local identity…");
   const current = await nativeGetIdentity();
   if (!current) throw new Error("sign in required");
@@ -1820,12 +1824,12 @@ export async function updatePublicProfile(input: {
   const {
     encodePinnedPrefixes,
     encodeProfileStatus,
-    fetchHubProfile,
+    fetchForgeProfile,
     PROFILE_META_PINNED,
     PROFILE_META_STATUS,
-    publishHubProfile,
-  } = await import("./hub-profile");
-  const existing = await fetchHubProfile(current.fingerprint, {
+    publishForgeProfile,
+  } = await import("./forge-profile");
+  const existing = await fetchForgeProfile(current.fingerprint, {
     reliable: true,
   });
 
@@ -1840,7 +1844,7 @@ export async function updatePublicProfile(input: {
     (input.avatar ?? existing?.avatar ?? "").slice(0, 48_000),
   );
 
-  let identity: HubIdentityInfo;
+  let identity: ForgeIdentityInfo;
   if (current.name === name && (current.email || "") === email) {
     identity = current;
   } else {
@@ -1873,7 +1877,7 @@ export async function updatePublicProfile(input: {
       delete public_meta[PROFILE_META_PINNED];
     }
   }
-  await publishHubProfile({
+  await publishForgeProfile({
     username: name,
     public_email: email,
     bio,
@@ -1882,7 +1886,7 @@ export async function updatePublicProfile(input: {
     public_meta,
   });
 
-  // NEW CODE - TESTING: Discover/About resolve names from HubProfile cache
+  // NEW CODE - TESTING: Discover/About resolve names from ForgeProfile cache
   try {
     const { invalidatePersonDisplayName } = await import("./person-display");
     invalidatePersonDisplayName(identity.fingerprint);
@@ -1902,7 +1906,7 @@ export async function updatePublicProfile(input: {
   return identity;
 }
 
-/** Load public profile fields (HubProfile on Freenet; cache for self). */
+/** Load public profile fields (ForgeProfile on Freenet; cache for self). */
 export async function loadPublicProfile(
   fingerprintOrVaultId: string,
 ): Promise<{
@@ -1921,7 +1925,7 @@ export async function loadPublicProfile(
   const {
     parsePinnedPrefixes,
     parseProfileStatus,
-  } = await import("./hub-profile");
+  } = await import("./forge-profile");
 
   const emptyMeta = {
     statusText: "",
@@ -1935,7 +1939,7 @@ export async function loadPublicProfile(
     looksLikeFingerprint &&
     id.fingerprint.toLowerCase() === fingerprintOrVaultId.toLowerCase()
   ) {
-    const state = await fetchHubProfile(id.fingerprint).catch(() => null);
+    const state = await fetchForgeProfile(id.fingerprint).catch(() => null);
     const status = parseProfileStatus(state?.public_meta);
     return {
       bio: cached.bio,
@@ -1955,7 +1959,7 @@ export async function loadPublicProfile(
       normalizeVaultId(fingerprintOrVaultId)
   ) {
     const state = id
-      ? await fetchHubProfile(id.fingerprint).catch(() => null)
+      ? await fetchForgeProfile(id.fingerprint).catch(() => null)
       : null;
     const status = parseProfileStatus(state?.public_meta);
     return {
@@ -1984,7 +1988,7 @@ export async function loadPublicProfile(
     };
   }
 
-  const state = await fetchHubProfile(fp).catch(() => null);
+  const state = await fetchForgeProfile(fp).catch(() => null);
   if (!state) {
     return {
       bio: "",
@@ -2027,7 +2031,7 @@ export async function changePassword(_input: {
   newPassword: string;
   totpCode?: string;
 }): Promise<void> {
-  throw new Error("Vault password was removed — GitAtlas vault is identity-gated.");
+  throw new Error("Vault password was removed — GitForge vault is identity-gated.");
 }
 
 
@@ -2040,7 +2044,7 @@ export async function recoverWithPhrase(input: {
   username?: string;
   email?: string;
 }): Promise<{
-  identity: HubIdentityInfo;
+  identity: ForgeIdentityInfo;
   recovery_phrase: string;
   vault_id: string;
 }> {
@@ -2080,36 +2084,36 @@ export async function revealSessionRecoveryPhrase(): Promise<string> {
 
 /**
  * Restore / log in from the 24-word BIP-39 phrase (no JSON file).
- * Prefer HubProfile username/contact; fall back to vault public username,
- * then publish HubProfile if Freenet has none yet.
+ * Prefer ForgeProfile username/contact; fall back to vault public username,
+ * then publish ForgeProfile if Freenet has none yet.
  */
 export async function restoreFromRecoveryPhrase(input: {
   phrase: string;
   username?: string;
   onStatus?: (msg: string) => void;
-}): Promise<HubIdentityInfo> {
+}): Promise<ForgeIdentityInfo> {
   input.onStatus?.("Parsing recovery phrase…");
   const seed_hex = seedHexFromPhrase(input.phrase);
   const vault_id = vaultIdFromSeedHex(seed_hex);
   const fingerprint = fingerprintFromSeedHex(seed_hex);
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-  // const existing = await fetchHubVault(vault_id).catch(() => null);
+  // const existing = await fetchForgeVault(vault_id).catch(() => null);
   // const username = input.username?.trim() || existing?.username || "user";
   // const email = defaultContactFromFingerprint(fingerprint);
-  // NEW CODE - TESTING: HubProfile first (expected once create published it)
+  // NEW CODE - TESTING: ForgeProfile first (expected once create published it)
   input.onStatus?.("Looking up public profile…");
-  let existingProfile: HubProfileStateJson | null = null;
+  let existingProfile: ForgeProfileStateJson | null = null;
   try {
-    existingProfile = await fetchHubProfile(fingerprint, { reliable: true });
+    existingProfile = await fetchForgeProfile(fingerprint, { reliable: true });
   } catch (err) {
     if (!isWsDropError(err)) throw err;
     const { resetFreenetConn } = await import("./ws");
     resetFreenetConn();
-    existingProfile = await fetchHubProfile(fingerprint, { reliable: true });
+    existingProfile = await fetchForgeProfile(fingerprint, { reliable: true });
   }
   const existingVault = existingProfile
     ? null
-    : await fetchHubVault(vault_id).catch(() => null);
+    : await fetchForgeVault(vault_id).catch(() => null);
   const username =
     existingProfile?.username?.trim() ||
     input.username?.trim() ||
@@ -2226,7 +2230,7 @@ export interface InboxDoneItem {
   outcome: "accepted" | "denied";
 }
 
-const INBOX_DONE_KEY = "gitatlas.inbox-done.v1";
+const INBOX_DONE_KEY = "gitforge.inbox-done.v1";
 
 function readInboxDone(): InboxDoneItem[] {
   try {
@@ -2257,9 +2261,9 @@ function recordInboxDone(item: InboxDoneItem): void {
 }
 
 export async function acceptRepoInvite(messageId: string): Promise<void> {
-  const { pruneInboxMessages } = await import("./hub-profile");
+  const { pruneInboxMessages } = await import("./forge-profile");
   const invite = await import("./repo-invite");
-  const { fetchHubRegistry } = await import("./hub-registry");
+  const { fetchForgeRegistry } = await import("./forge-registry");
   const msgs = listInboxPlaintexts();
   const msg = msgs.find((m) => m.id === messageId);
   if (!msg?.plaintext || msg.plaintext.kind !== invite.REPO_INVITE_KIND) {
@@ -2280,7 +2284,7 @@ export async function acceptRepoInvite(messageId: string): Promise<void> {
     !coupon.repo_prefix
   ) {
     throw new Error(
-      "This invite has no owner coupon — ask the owner to re-send the invite from the latest GitAtlas",
+      "This invite has no owner coupon — ask the owner to re-send the invite from the latest GitForge",
     );
   }
 
@@ -2288,29 +2292,29 @@ export async function acceptRepoInvite(messageId: string): Promise<void> {
   if (!self) throw new Error("Sign in before accepting an invite");
   if (coupon.identity_fingerprint !== self.fingerprint) {
     throw new Error(
-      "This invite was issued for a different GitAtlas identity — cannot accept",
+      "This invite was issued for a different GitForge identity — cannot accept",
     );
   }
   if (coupon.repo_prefix !== body.prefix) {
     throw new Error("Invite coupon prefix does not match sealed site key");
   }
 
-  const registry = await fetchHubRegistry();
+  const registry = await fetchForgeRegistry();
   const listing = registry.repos.find((r) => r.repo_prefix === body.prefix);
   if (!listing) {
     throw new Error(
-      "This repository is not listed on GitAtlas — ask the owner to Register before accepting",
+      "This repository is not listed on GitForge — ask the owner to Register before accepting",
     );
   }
   const ownerVk = listing.identity_fingerprint.replace(/^freenet:id:/, "");
   if (!msg.sender_vk || msg.sender_vk !== ownerVk) {
     throw new Error(
-      "Invite sender does not match the GitAtlas registry owner for this repository — refusing site key",
+      "Invite sender does not match the GitForge registry owner for this repository — refusing site key",
     );
   }
   if (coupon.repo_owner_vk !== listing.repo_owner_vk) {
     throw new Error(
-      "Invite coupon repo_owner_vk does not match the live GitAtlas listing",
+      "Invite coupon repo_owner_vk does not match the live GitForge listing",
     );
   }
   if (listing.identity_fingerprint === self.fingerprint) {
@@ -2356,8 +2360,8 @@ export async function leaveRepositoryAsContributor(
   const id = await nativeGetIdentity();
   if (!id) throw new Error("Sign in before leaving a repository");
 
-  const { fetchHubRegistry } = await import("./hub-registry");
-  const registry = await fetchHubRegistry();
+  const { fetchForgeRegistry } = await import("./forge-registry");
+  const registry = await fetchForgeRegistry();
   const listing = registry.repos.find((r) => r.repo_prefix === prefix);
   if (listing?.identity_fingerprint === id.fingerprint) {
     throw new Error(
@@ -2384,17 +2388,17 @@ export async function leaveRepositoryAsContributor(
 }
 
 export async function denyRepoInvite(messageId: string): Promise<void> {
-  const { pruneInboxMessages } = await import("./hub-profile");
+  const { pruneInboxMessages } = await import("./forge-profile");
   const invite = await import("./repo-invite");
   const { nativeDeclinePendingInvite } = await import("./owner-api");
-  const { fetchHubRegistry } = await import("./hub-registry");
+  const { fetchForgeRegistry } = await import("./forge-registry");
   const msgs = listInboxPlaintexts();
   const msg = msgs.find((m) => m.id === messageId);
   const body =
     msg?.plaintext?.kind === invite.REPO_INVITE_KIND
       ? (msg.plaintext.body as import("./repo-invite").RepoInviteBody)
       : null;
-  // NEW CODE - TESTING: clear repo-level pending invite on HubRegistry first
+  // NEW CODE - TESTING: clear repo-level pending invite on ForgeRegistry first
   if (body?.prefix) {
     const self = getCachedIdentity();
     const inviteeFp =
@@ -2402,7 +2406,7 @@ export async function denyRepoInvite(messageId: string): Promise<void> {
     const repoOwnerVk =
       body.coupon?.repo_owner_vk ||
       (
-        await fetchHubRegistry().catch(() => null)
+        await fetchForgeRegistry().catch(() => null)
       )?.repos.find((r) => r.repo_prefix === body.prefix)?.repo_owner_vk ||
       "";
     if (inviteeFp && repoOwnerVk) {
@@ -2413,7 +2417,7 @@ export async function denyRepoInvite(messageId: string): Promise<void> {
           repoOwnerVk,
         });
       } catch (e) {
-        console.warn("[auth] HubRegistry pending invite decline failed:", e);
+        console.warn("[auth] ForgeRegistry pending invite decline failed:", e);
         throw e instanceof Error
           ? e
           : new Error(String(e));
@@ -2435,7 +2439,7 @@ export async function denyRepoInvite(messageId: string): Promise<void> {
 
 // OLD CODE - KEEP UNTIL CONFIRMED WORKING
 // export async function applyPendingInviteDeclinesFromInbox(): Promise<number> { … }
-// NEW CODE - TESTING: pending invites live on HubRegistry; no owner-inbox decline notices
+// NEW CODE - TESTING: pending invites live on ForgeRegistry; no owner-inbox decline notices
 
 export async function exportIdentityBundle(): Promise<IdentityExportBundle> {
   const exported = await nativeExportIdentity();
@@ -2450,7 +2454,7 @@ export async function exportIdentityBundle(): Promise<IdentityExportBundle> {
     undefined;
   return {
     v: 1,
-    kind: "freenethub-identity-export",
+    kind: "gitforge-identity-export",
     secret_key: exported.secret_key,
     fingerprint: exported.fingerprint,
     name: exported.name,
@@ -2507,7 +2511,7 @@ export async function exportFreenetGitCliBundle(input?: {
 
 export async function linkIdentityBundle(
   raw: string,
-): Promise<HubIdentityInfo> {
+): Promise<ForgeIdentityInfo> {
   const data = JSON.parse(raw) as IdentityExportBundle & {
     secret_key?: string;
     name?: string;
@@ -2537,9 +2541,9 @@ export async function linkIdentityBundle(
   return identity;
 }
 
-export async function currentIdentity(): Promise<HubIdentityInfo | null> {
+export async function currentIdentity(): Promise<ForgeIdentityInfo | null> {
   const cached = getCachedIdentity();
-  const probe = async (): Promise<HubIdentityInfo | null> => {
+  const probe = async (): Promise<ForgeIdentityInfo | null> => {
     const id = await nativeGetIdentity();
     if (id) {
       setCachedIdentity(id);

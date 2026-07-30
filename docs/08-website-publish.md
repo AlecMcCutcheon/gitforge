@@ -1,4 +1,4 @@
-# Publish GitAtlas as a Freenet website
+# Publish GitForge as a Freenet website
 
 Deploy the UI as a signed Freenet **website contract** via `fdev website`.
 
@@ -13,11 +13,11 @@ loop; tip-browse and owner tools use the Freenet node WebSocket.
 ## Owner WASM (once per machine / after contract changes)
 
 ```sh
-cd freenet-gitatlas
-bash scripts/build-hub-owner-tools.sh
+cd freenet-gitforge
+bash scripts/build-forge-owner-tools.sh
 bash scripts/publish-owner-tools.sh
-# → hub_registry, hub_stars, hub_identity, …
-# HubVault is Put per-email on Account register
+# → forge_registry, forge_stars, forge_identity, …
+# ForgeVault is Put per-email on Account register
 ```
 
 Constants land in `web/src/freenet/owner-constants.ts`. Assets under
@@ -26,11 +26,11 @@ Constants land in `web/src/freenet/owner-constants.ts`. Assets under
 ## Build + publish website
 
 ```sh
-cd freenet-gitatlas
+cd freenet-gitforge
 npm run publish:website
 ```
 
-Key name defaults to `freenethub` (override with `FREENET_HUB_WEBSITE_KEY`).
+Key name defaults to `gitforge` (override with `GITFORGE_WEBSITE_KEY`).
 
 Open the **Website URL** from `fdev website list` (typically
 `http://127.0.0.1:7509/v1/contract/web/<key>/`). Hard-refresh after each publish.

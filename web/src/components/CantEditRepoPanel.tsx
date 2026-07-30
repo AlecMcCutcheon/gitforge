@@ -38,7 +38,7 @@ export function CantEditRepoPanel({
       </h2>
       <p className="gh-cant-edit-body">
         Sorry, you’re not able to edit this repository directly. Forking isn’t
-        available in GitAtlas yet — only the repository owner can change files
+        available in GitForge yet — only the repository owner can change files
         from the browser for now.
       </p>
       <button type="button" className="btn gh-cant-edit-btn" disabled>

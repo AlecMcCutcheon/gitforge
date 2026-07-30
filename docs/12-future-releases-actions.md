@@ -1,10 +1,10 @@
 # Future: Releases & Actions-style runners
 
-## Why Releases were removed from GitAtlas (2026-07)
+## Why Releases were removed from GitForge (2026-07)
 
-GitAtlas briefly showed a GitHub-like **Releases** tab by dressing up `refs/tags/*` (annotated messages + tip-tree zip as “assets”). That is **not** the same as GitHub Releases or a freenet-git release artifact model.
+GitForge briefly showed a GitHub-like **Releases** tab by dressing up `refs/tags/*` (annotated messages + tip-tree zip as “assets”). That is **not** the same as GitHub Releases or a freenet-git release artifact model.
 
-Until freenet-git (and GitAtlas) have a real release story, GitAtlas only surfaces **git tags**. There is no `/releases` route (unknown paths 404).
+Until freenet-git (and GitForge) have a real release story, GitForge only surfaces **git tags**. There is no `/releases` route (unknown paths 404).
 
 ## Later direction (not scheduled)
 

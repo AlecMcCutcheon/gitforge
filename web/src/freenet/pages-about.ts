@@ -1,8 +1,8 @@
 /**
- * When Pages is disabled, clear HubRegistry About.website if it still points
+ * When Pages is disabled, clear ForgeRegistry About.website if it still points
  * at this repo’s Pages site URL (owner opted in via “Use the same as Pages”).
  */
-import type { HubPagesConfig } from "../api";
+import type { ForgePagesConfig } from "../api";
 
 function normalizeWebsiteUrl(raw: string): string {
   return raw.trim().replace(/\/+$/, "").toLowerCase();
@@ -25,14 +25,14 @@ export function websitesMatchPagesUrl(
 export async function clearAboutWebsiteIfMatchesPages(
   prefix: string,
   label: string,
-  pagesCfg: HubPagesConfig,
+  pagesCfg: ForgePagesConfig,
 ): Promise<void> {
   const pagesUrl = pagesCfg.siteUrl;
   if (!pagesUrl) return;
   try {
-    const { fetchHubRegistry } = await import("./hub-registry");
+    const { fetchForgeRegistry } = await import("./forge-registry");
     const { loadRegistryCached } = await import("./discover-cache");
-    const repos = await loadRegistryCached(() => fetchHubRegistry());
+    const repos = await loadRegistryCached(() => fetchForgeRegistry());
     const hit = repos.find((r) => r.repo_prefix === prefix);
     if (!hit || !websitesMatchPagesUrl(hit.website, pagesUrl)) return;
     const { nativeUpdateRepoAbout } = await import("./owner-api");

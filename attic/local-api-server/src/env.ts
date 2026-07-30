@@ -8,8 +8,8 @@ export const DEFAULT_WS_URL =
   process.env.FREENET_WS_URL ?? "ws://127.0.0.1:7509/v1/contract/command";
 
 export function cacheRoot(): string {
-  if (process.env.FREENET_HUB_CACHE) {
-    return path.resolve(process.env.FREENET_HUB_CACHE);
+  if (process.env.GITFORGE_CACHE) {
+    return path.resolve(process.env.GITFORGE_CACHE);
   }
   return path.join(os.homedir(), ".local", "share", "freenet-hub", "repos");
 }

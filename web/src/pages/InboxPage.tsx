@@ -24,6 +24,7 @@ import { FlashNotice } from "../components/FlashNotice";
 import { BusyLabel, OperationStatus } from "../components/OperationStatus";
 import { PageLoadingOverlay } from "../components/PageLoadingOverlay";
 import { isBrowserNativeMode } from "../tip-browse";
+import { brand } from "../lib/brand";
 import { useDocumentTitle } from "../lib/document-title";
 
 type InboxNav = "inbox" | "done";
@@ -157,9 +158,10 @@ export function InboxPage() {
           setMessages(listInboxPlaintexts());
         });
     };
-    window.addEventListener("freenethub-inbox-updated", onUpdated);
-    return () =>
-      window.removeEventListener("freenethub-inbox-updated", onUpdated);
+    window.addEventListener("gitforge-inbox-updated", onUpdated);
+    return () => {
+      window.removeEventListener("gitforge-inbox-updated", onUpdated);
+    };
   }, [websiteMode, sessionReady, signedIn]);
 
   const selfVk = getCachedIdentity()?.public_key_b58 ?? null;
@@ -374,7 +376,7 @@ export function InboxPage() {
                       <p className="muted tiny">
                         Accepting imports this repo’s Freenet site key into your
                         identity delegate (not your identity seed). You will be
-                        able to push from GitAtlas and the CLI. Only accept from
+                        able to push from {brand.displayName} and the CLI. Only accept from
                         people you trust — access cannot be revoked later without
                         rotating the key.
                       </p>

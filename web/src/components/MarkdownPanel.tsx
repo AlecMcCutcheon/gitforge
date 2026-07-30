@@ -222,7 +222,7 @@ export function ReadmePanel({
           const res = await api.blob(prefix, label, branch, repoPath);
           if (!res.contentBase64) {
             console.warn(
-              "[freenet-hub] README image blob has no contentBase64:",
+              "[freenet-forge] README image blob has no contentBase64:",
               repoPath,
               {
                 size: res.size,
@@ -239,7 +239,7 @@ export function ReadmePanel({
           };
         } catch (err) {
           console.warn(
-            "[freenet-hub] README image api.blob failed:",
+            "[freenet-forge] README image api.blob failed:",
             repoPath,
             err instanceof Error ? err.message : err,
           );
@@ -356,7 +356,7 @@ export function FileContentPanel({
             const res = await api.blob(prefix, label, branch, repoPath);
             if (!res.contentBase64) {
               console.warn(
-                "[freenet-hub] markdown image blob has no contentBase64:",
+                "[freenet-forge] markdown image blob has no contentBase64:",
                 repoPath,
                 {
                   size: res.size,
@@ -372,7 +372,7 @@ export function FileContentPanel({
             };
           } catch (err) {
             console.warn(
-              "[freenet-hub] markdown image api.blob failed:",
+              "[freenet-forge] markdown image api.blob failed:",
               repoPath,
               err instanceof Error ? err.message : err,
             );
@@ -727,7 +727,7 @@ export function FileContentPanel({
           {rawHref ? (
             // OLD CODE - KEEP UNTIL CONFIRMED WORKING
             // freenetNodeRawFileHref — non-stock freenet only
-            // NEW CODE - TESTING: GitAtlas website /?raw=…
+            // NEW CODE - TESTING: GitForge website /?raw=…
             <a
               className="gh-file-action-btn"
               href={freenetRawFileHref(rawHref)}

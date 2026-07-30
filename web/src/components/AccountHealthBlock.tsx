@@ -1,5 +1,5 @@
 /**
- * Settings: soft-GET HubProfile + HubVault reachability (+ last checked).
+ * Settings: soft-GET ForgeProfile + ForgeVault reachability (+ last checked).
  */
 import { useEffect, useState } from "react";
 import {

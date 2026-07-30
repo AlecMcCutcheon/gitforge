@@ -2,7 +2,7 @@ blank_issues_enabled: true
 contact_links:
   - name: Freenet core (node) issues
     url: https://github.com/freenet/freenet-core/issues
-    about: Bugs or features that belong in freenet-core itself, not the GitAtlas app.
+    about: Bugs or features that belong in freenet-core itself, not the GitForge app.
   - name: Contributing guide
-    url: https://github.com/AlecMcCutcheon/gitatlas/blob/main/CONTRIBUTING.md
+    url: https://github.com/AlecMcCutcheon/gitforge/blob/main/CONTRIBUTING.md
     about: Issue-first policy for features and design changes.

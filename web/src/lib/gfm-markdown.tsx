@@ -310,7 +310,7 @@ function MarkdownImg({
               return;
             }
             console.warn(
-              "[freenet-hub] README image missing after tip load:",
+              "[freenet-forge] README image missing after tip load:",
               repoPath,
             );
             setFailed(true);
@@ -333,7 +333,7 @@ function MarkdownImg({
             return;
           }
           console.warn(
-            "[freenet-hub] README image load failed:",
+            "[freenet-forge] README image load failed:",
             repoPath,
             err instanceof Error ? err.message : err,
           );

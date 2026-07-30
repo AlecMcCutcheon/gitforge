@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useParams, useSearchParams } from "react-router-dom";
 import { Link } from "../spa-link";
-import { api, type HubRegistration, type PersonResponse } from "../api";
+import { api, type ForgeRegistration, type PersonResponse } from "../api";
 import { PageLoadingOverlay } from "../components/PageLoadingOverlay";
 import { ProfileAvatar } from "../components/ProfileAvatar";
 import {
@@ -24,13 +24,13 @@ import {
   peekCachedRegistry,
   peekCachedStars,
 } from "../freenet/discover-cache";
-import { fetchHubRegistry } from "../freenet/hub-registry";
+import { fetchForgeRegistry } from "../freenet/forge-registry";
 import { parseRegistryLanguage } from "../freenet/registry-lang";
 import {
-  fetchHubProfile,
+  fetchForgeProfile,
   parsePinnedPrefixes,
   parseProfileStatus,
-} from "../freenet/hub-profile";
+} from "../freenet/forge-profile";
 import {
   fingerprintFromSearch,
   fingerprintWordsJoined,
@@ -38,15 +38,16 @@ import {
   peoplePath,
 } from "../freenet/fingerprint-words";
 import {
-  fetchHubStars,
+  fetchForgeStars,
   reposStarredBy,
   starCountForRepo,
-} from "../freenet/hub-stars";
+} from "../freenet/forge-stars";
 import {
   rememberPersonFingerprint,
   resolvePersonRef,
 } from "../freenet/people-resolve";
 import { repoHref, repoPathDisplay } from "../lib/repo-path";
+import { registryLabel } from "../lib/brand";
 import { isBrowserNativeMode } from "../tip-browse";
 import {
   looksLikePersonNotFound,
@@ -62,11 +63,11 @@ interface PersonRepoRow {
   label: string;
   name: string | null;
   description: string | null;
-  /** HubRegistry owner fingerprint when registered. */
+  /** ForgeRegistry owner fingerprint when registered. */
   ownerFingerprint: string | null;
   role: "owner" | "contributor";
   registration: "registered" | "unregistered";
-  /** Cached HubRegistry public_meta.lang (null = unknown / omit). */
+  /** Cached ForgeRegistry public_meta.lang (null = unknown / omit). */
   language: string | null;
   languageColor: string | null;
 }
@@ -109,7 +110,7 @@ function isDeletedListing(description: string | null | undefined): boolean {
 }
 
 function rowFromRegistration(
-  r: HubRegistration,
+  r: ForgeRegistration,
   profileFingerprint: string,
 ): PersonRepoRow {
   const owner = r.identity_fingerprint;
@@ -185,8 +186,8 @@ function RepoList({
                     }
                     title={
                       r.role === "owner"
-                        ? "HubRegistry owner fingerprint matches this profile"
-                        : "Local key held here; HubRegistry lists a different owner"
+                        ? "ForgeRegistry owner fingerprint matches this profile"
+                        : "Local key held here; ForgeRegistry lists a different owner"
                     }
                   >
                     {r.role === "owner" ? "Owner" : "Contributor"}
@@ -199,8 +200,8 @@ function RepoList({
                     }
                     title={
                       r.registration === "registered"
-                        ? "Listed on GitAtlasRegistry (GAR)"
-                        : "In your identity delegate on this device — not on HubRegistry (only you see this)"
+                        ? `Listed on ${registryLabel()}`
+                        : "In your identity delegate on this device — not on ForgeRegistry (only you see this)"
                     }
                   >
                     {r.registration === "registered"
@@ -292,7 +293,7 @@ export function PeoplePage() {
   );
   const [selfProfile, setSelfProfile] = useState(() => getCachedProfile());
   const websiteMode = isBrowserNativeMode();
-  // NEW CODE - TESTING: self-only rows from hub-identity not on / beyond HubRegistry
+  // NEW CODE - TESTING: self-only rows from forge-identity not on / beyond ForgeRegistry
   const [delegateExtraRows, setDelegateExtraRows] = useState<PersonRepoRow[]>(
     [],
   );
@@ -414,7 +415,7 @@ export function PeoplePage() {
     }
     let cancelled = false;
     setPublicProfile(null);
-    void fetchHubProfile(id)
+    void fetchForgeProfile(id)
       .then((state) => {
         if (cancelled || !state) return;
         const status = parseProfileStatus(state.public_meta);
@@ -436,17 +437,17 @@ export function PeoplePage() {
     };
   }, [id, websiteMode]);
 
-  // HubStars is a public singleton — prefetch on mount (not per-person).
+  // ForgeStars is a public singleton — prefetch on mount (not per-person).
   useEffect(() => {
     if (!websiteMode) return;
-    void loadStarsCached(() => fetchHubStars()).catch(() => null);
+    void loadStarsCached(() => fetchForgeStars()).catch(() => null);
   }, [websiteMode]);
 
-  // NEW CODE - TESTING: refresh HubRegistry so pin lang/public_meta is current
+  // NEW CODE - TESTING: refresh ForgeRegistry so pin lang/public_meta is current
   const [registryTick, setRegistryTick] = useState(0);
   useEffect(() => {
     if (!websiteMode || !id) return;
-    void loadRegistryCached(() => fetchHubRegistry())
+    void loadRegistryCached(() => fetchForgeRegistry())
       .then(() => setRegistryTick((n) => n + 1))
       .catch(() => null);
   }, [websiteMode, id]);
@@ -463,7 +464,7 @@ export function PeoplePage() {
     let cancelled = false;
     // OLD CODE - KEEP UNTIL CONFIRMED WORKING
     // setStarsReady(false);
-    // void fetchHubStars().then(…).finally(() => setStarsReady(true));
+    // void fetchForgeStars().then(…).finally(() => setStarsReady(true));
     // NEW CODE - TESTING: paint from cache immediately; bound network wait
     const cached = peekCachedStars();
     if (cached) {
@@ -473,7 +474,7 @@ export function PeoplePage() {
       setStarsReady(false);
     }
     void Promise.race([
-      loadStarsCached(() => fetchHubStars()),
+      loadStarsCached(() => fetchForgeStars()),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), 8_000)),
     ])
       .then((state) => {
@@ -503,7 +504,7 @@ export function PeoplePage() {
       setDelegateReposReady(true);
       return;
     }
-    // Wait for HubRegistry person seed so we do not flash Unregistered on owned listings
+    // Wait for ForgeRegistry person seed so we do not flash Unregistered on owned listings
     if (!person && !error) {
       setDelegateReposReady(false);
       return;
@@ -516,13 +517,13 @@ export function PeoplePage() {
         const { loadRegistryCached } = await import(
           "../freenet/discover-cache"
         );
-        const { fetchHubRegistry } = await import("../freenet/hub-registry");
+        const { fetchForgeRegistry } = await import("../freenet/forge-registry");
         const local = await nativeListRepos();
         if (cancelled) return;
         const registry =
           peekCachedRegistry() ??
-          (await loadRegistryCached(() => fetchHubRegistry()).catch(
-            () => [] as HubRegistration[],
+          (await loadRegistryCached(() => fetchForgeRegistry()).catch(
+            () => [] as ForgeRegistration[],
           ));
         if (cancelled) return;
         const ownedPrefixes = new Set(
@@ -629,7 +630,7 @@ export function PeoplePage() {
   // const overviewRepos = repoRows.slice(0, 6);
   const repos = repoRows;
 
-  // Prefer HubProfile pins; empty until the owner customizes pins.
+  // Prefer ForgeProfile pins; empty until the owner customizes pins.
   const pinnedRows = useMemo(() => {
     const pins = publicProfile?.pinnedPrefixes ?? [];
     if (pins.length === 0) return [] as PersonRepoRow[];
@@ -657,7 +658,7 @@ export function PeoplePage() {
 
   const pinnedCards = useMemo(() => {
     const stars = peekCachedStars();
-    // NEW CODE - TESTING: prefer live HubRegistry cache for lang (person.repos can be stale)
+    // NEW CODE - TESTING: prefer live ForgeRegistry cache for lang (person.repos can be stale)
     const reg = peekCachedRegistry();
     return pinnedRows.map((r) => {
       const listing = reg?.find((x) => x.repo_prefix === r.prefix);
@@ -757,7 +758,7 @@ export function PeoplePage() {
   //     </main>
   //   );
   // }
-  // NEW CODE - TESTING: only wait for fingerprint resolve — HubRegistry/person is optional
+  // NEW CODE - TESTING: only wait for fingerprint resolve — ForgeRegistry/person is optional
   if (!id) {
     return (
       <main className="page profile-page">
@@ -914,7 +915,7 @@ export function PeoplePage() {
               <h2>Repositories</h2>
               {isSelf ? (
                 <p className="muted">
-                  Registered listings from HubRegistry, plus unregistered repos
+                  Registered listings from ForgeRegistry, plus unregistered repos
                   held in your identity on this device (only you see those).
                   Local backups share storage with Stars (starring your own repo
                   does not duplicate tip packs).
@@ -928,8 +929,8 @@ export function PeoplePage() {
                   showBackup={isSelf && websiteMode}
                   empty={
                     isSelf
-                      ? "No repositories in HubRegistry or your local identity yet."
-                      : "No HubRegistry listings for this identity yet."
+                      ? "No repositories in ForgeRegistry or your local identity yet."
+                      : "No ForgeRegistry listings for this identity yet."
                   }
                 />
               )}

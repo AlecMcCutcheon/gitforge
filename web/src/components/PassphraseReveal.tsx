@@ -61,8 +61,8 @@ export function PassphraseReveal({
         ) : null}
       </p>
       <p className="muted tiny passphrase-reveal__hint">
-        Copy this now — freenet-git and GitAtlas restore need it with the
-        .bundle file. It is not stored in GitAtlas after you leave this page.
+        Copy this now — freenet-git and GitForge restore need it with the
+        .bundle file. It is not stored in GitForge after you leave this page.
       </p>
       <div className="passphrase-reveal__row">
         <input

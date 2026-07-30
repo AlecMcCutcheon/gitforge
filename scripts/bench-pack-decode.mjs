@@ -5,7 +5,7 @@
  * Usage:
  *   node scripts/bench-pack-decode.mjs [packDir]
  *
- * Default packDir: ~/.local/share/freenet-hub/tips/<first>/packs
+ * Default packDir: ~/.local/share/freenet-gitforge/tips/<first>/packs
  */
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
@@ -33,7 +33,7 @@ async function loadUnpack() {
 
 function defaultPackDir() {
   if (process.argv[2]) return process.argv[2];
-  const tips = join(homedir(), ".local/share/freenet-hub/tips");
+  const tips = join(homedir(), ".local/share/freenet-gitforge/tips");
   if (!existsSync(tips)) {
     throw new Error(`No tip cache at ${tips}; pass a pack directory`);
   }

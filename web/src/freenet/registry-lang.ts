@@ -1,5 +1,5 @@
 /**
- * HubRegistry public_meta keys for cached primary language (Discover / pins).
+ * ForgeRegistry public_meta keys for cached primary language (Discover / pins).
  * Owner dual-sig upsert only — not visitor-writable.
  */
 export const REGISTRY_META_LANG = "lang";

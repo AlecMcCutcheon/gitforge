@@ -1,22 +1,23 @@
 /**
- * Build Freenet shell Pin presentation (ProtectPresentation) + GitAtlas custom_css.
+ * Build Freenet shell Pin presentation (ProtectPresentation) + GitForge custom_css.
  */
 
 import { brandLogoDataUrl } from "../components/BrandLogo";
 import { vaultIdenticonDataUrl } from "../components/VaultIdenticon";
 import { normalizeProfileAvatar } from "../lib/avatar-image";
+import { brand } from "../lib/brand";
 import { getCachedIdentity, getCachedProfile } from "./auth-api";
-import { GITATLAS_WEBSITE_CONTRACT_KEY } from "./website-constants";
+import { FORGE_WEBSITE_CONTRACT_KEY } from "./website-constants";
 import type { ProtectPresentation, ProtectScopeItem } from "./local-protect";
 
 /** @deprecated Prefer brandLogoDataUrl() — kept for any stale imports. */
-export const GITATLAS_APP_LOGO_DATA_URL = brandLogoDataUrl();
+export const FORGE_APP_LOGO_DATA_URL = brandLogoDataUrl();
 
 /**
- * GitAtlas-tinted OAuth chrome (no url/@import — server rejects those).
+ * GitForge-tinted OAuth chrome (no url/@import — server rejects those).
  * Distinct from Freenet default blue-gray so Authorize cards read as this app.
  */
-export const GITATLAS_PROTECT_OVERLAY_CSS = `
+export const FORGE_PROTECT_OVERLAY_CSS = `
 #__freenet_perm_overlay .fn-oauth.fn-card{
   border-radius:12px;
   border-color:#d0d7de;
@@ -124,18 +125,18 @@ export function buildProtectPresentation(
   return {
     title: opts.title,
     subtitle: opts.subtitle,
-    app_name: opts.appName ?? "GitAtlas",
+    app_name: opts.appName ?? brand.displayName,
     app_logo_b64: brandLogoDataUrl(),
     user_avatar_b64: currentProtectAvatarDataUrl(
       opts.userAvatarDataUrl,
       opts.fingerprint,
     ),
-    contract_id: opts.contractId ?? GITATLAS_WEBSITE_CONTRACT_KEY,
+    contract_id: opts.contractId ?? FORGE_WEBSITE_CONTRACT_KEY,
     scopes: opts.scopes,
     custom_css:
       opts.includeCustomCss === false
         ? undefined
-        : GITATLAS_PROTECT_OVERLAY_CSS.trim(),
+        : FORGE_PROTECT_OVERLAY_CSS.trim(),
     redirect_hint: opts.redirectHint,
   };
 }
@@ -145,7 +146,7 @@ export function layerAPresentation(
   fingerprint?: string | null,
 ): ProtectPresentation {
   return buildProtectPresentation({
-    title: "Authorize GitAtlas",
+    title: `Authorize ${brand.displayName}`,
     subtitle: "wants to use pinning on this Freenet node",
     userAvatarDataUrl,
     fingerprint,
@@ -178,7 +179,7 @@ export function identityScopePresentation(
   const labels = {
     profile: "Public profile",
     vault: "Account vault",
-    website: "GitAtlas site files",
+    website: `${brand.displayName} site files`,
   } as const;
   return buildProtectPresentation({
     title: `Authorize ${labels[area]}`,

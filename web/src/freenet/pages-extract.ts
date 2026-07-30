@@ -83,7 +83,7 @@ export function tombstoneSiteFiles(): Map<string, Uint8Array> {
   <title>Pages disabled</title>
 </head>
 <body>
-  <p>This GitAtlas Pages site has been disabled.</p>
+  <p>This GitForge Pages site has been disabled.</p>
 </body>
 </html>
 `;

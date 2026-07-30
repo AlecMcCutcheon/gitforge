@@ -1,6 +1,6 @@
 /**
  * Self-inbox system notifications (backup worker, account heal, …).
- * Signed by the user's identity — UI treats self-signed / gitatlas.* as System.
+ * Signed by the user's identity — UI treats self-signed / gitforge.system.* as System.
  */
 import { randomBytes, bytesToHex } from "@noble/hashes/utils";
 import {
@@ -10,14 +10,17 @@ import {
   setCachedInboxMessages,
   type DecryptedInboxMessage,
 } from "./inbox-crypto";
-import { appendInboxMessage, fetchHubProfile } from "./hub-profile";
+import { appendInboxMessage, fetchForgeProfile } from "./forge-profile";
 import { nativeExportIdentity } from "./owner-api";
+import { brand } from "../lib/brand";
 
-export const SYSTEM_KIND_BACKUP_CREATED = "gitatlas.system.backup_created";
-export const SYSTEM_KIND_BACKUP_UPDATED = "gitatlas.system.backup_updated";
-export const SYSTEM_KIND_ACCOUNT_HEALED = "gitatlas.system.account_healed";
+const SYS = `${brand.protectGrantPrefix}.system`;
+
+export const SYSTEM_KIND_BACKUP_CREATED = `${SYS}.backup_created`;
+export const SYSTEM_KIND_BACKUP_UPDATED = `${SYS}.backup_updated`;
+export const SYSTEM_KIND_ACCOUNT_HEALED = `${SYS}.account_healed`;
 export const SYSTEM_KIND_REPO_CONTRACTS_PROVISIONED =
-  "gitatlas.system.repo_contracts_provisioned";
+  `${SYS}.repo_contracts_provisioned`;
 
 export interface SystemNotifyBody {
   title: string;
@@ -27,10 +30,7 @@ export interface SystemNotifyBody {
 
 export function isSystemInboxKind(kind: string | undefined | null): boolean {
   if (!kind) return false;
-  return (
-    kind.startsWith("gitatlas.system.") ||
-    kind.startsWith("gitatlas.backup.")
-  );
+  return kind.startsWith(`${SYS}.`);
 }
 
 export function isSelfSignedInbox(
@@ -56,7 +56,7 @@ export async function notifySelfSystem(
     id = (await currentIdentity().catch(() => null)) ?? null;
   }
   if (!id) {
-    console.warn("[freenet-hub] system notify skipped: not signed in");
+    console.warn("[gitforge] system notify skipped: not signed in");
     return;
   }
 
@@ -71,12 +71,12 @@ export async function notifySelfSystem(
       // Prefer seed-derived inbox_pk for self so seal/decrypt always match
       const exported = await nativeExportIdentity();
       const seedPk = inboxPkHexFromSeedHex(exported.secret_key);
-      const profile = await fetchHubProfile(id.fingerprint, {
+      const profile = await fetchForgeProfile(id.fingerprint, {
         reliable: true,
       }).catch(() => null);
       const inboxPk = seedPk || profile?.inbox_pk?.trim() || "";
       if (!inboxPk) {
-        console.warn("[freenet-hub] system notify skipped: no inbox_pk");
+        console.warn("[gitforge] system notify skipped: no inbox_pk");
         return;
       }
       const ciphertext_b64 = sealInboxMessage(inboxPk, plaintext);
@@ -108,7 +108,7 @@ export async function notifySelfSystem(
       }
       try {
         window.dispatchEvent(
-          new CustomEvent("freenethub-inbox-updated", {
+          new CustomEvent("gitforge-inbox-updated", {
             detail: { kind },
           }),
         );
@@ -119,14 +119,14 @@ export async function notifySelfSystem(
     } catch (err) {
       lastErr = err;
       console.warn(
-        `[freenet-hub] system notify attempt ${attempt}/3:`,
+        `[gitforge] system notify attempt ${attempt}/3:`,
         err instanceof Error ? err.message : err,
       );
       if (attempt < 3) await sleep(800 * attempt);
     }
   }
   console.warn(
-    "[freenet-hub] system notify failed:",
+    "[gitforge] system notify failed:",
     lastErr instanceof Error ? lastErr.message : lastErr,
   );
 }

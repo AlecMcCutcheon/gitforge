@@ -1,8 +1,8 @@
 {
-  "name": "@freenet-hub/linguist",
+  "name": "@gitforge/linguist",
   "private": true,
   "version": "0.1.0",
-  "description": "Freenet/GitAtlas language detection — TypeScript port of Linguist strategies + go-enry classifier.",
+  "description": "Freenet/GitForge language detection — TypeScript port of Linguist strategies + go-enry classifier.",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"

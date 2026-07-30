@@ -1,11 +1,11 @@
 # Hub stars
 
-Public, signed stars for FreenetHub repositories. Counts are durable on Freenet
-via the singleton **HubStars** contract (not HubRegistry).
+Public, signed stars for GitForge repositories. Counts are durable on Freenet
+via the singleton **ForgeStars** contract (not ForgeRegistry).
 
 ## Contract
 
-- Params (UTF-8): `gitatlas-stars-v1`
+- Params (UTF-8): `gitforge-stars-v1`
 - State: `by_repo[repo_prefix][fingerprint] = { starred_at, label?, sig }`
 - **Count** for a repo = number of fingerprint keys under that prefix.
 
@@ -13,9 +13,9 @@ via the singleton **HubStars** contract (not HubRegistry).
 
 Identity delegate ops:
 
-- `SignStar` — domain `gitatlas.star.v1\0` + `repo_prefix`, `fingerprint`,
+- `SignStar` — domain `gitforge.star.v1\0` + `repo_prefix`, `fingerprint`,
   `label` (empty if absent), `starred_at`
-- `SignUnstar` — domain `gitatlas.unstar.v1\0` + `repo_prefix`,
+- `SignUnstar` — domain `gitforge.unstar.v1\0` + `repo_prefix`,
   `fingerprint`, `starred_at`
 
 Only the fingerprint whose verifying key matches the signature may add or remove
@@ -36,4 +36,4 @@ Stars are public; private encrypted star lists are out of scope for this phase.
 Included in `npm run build:owner` (`hub_stars.wasm` / `.pkg`). Republish the
 website after regenerating `owner-constants.ts`.
 
-See `contracts/hub-stars/SCHEMA.md`.
+See `contracts/forge-stars/SCHEMA.md`.

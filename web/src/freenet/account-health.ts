@@ -1,10 +1,10 @@
 /**
- * Account Freenet reachability: HubProfile + HubVault soft-GETs.
+ * Account Freenet reachability: ForgeProfile + ForgeVault soft-GETs.
  */
-import { hubProfileKeyForFingerprint } from "./hub-profile";
-import { hubVaultKeyForId } from "./hub-vault";
+import { forgeProfileKeyForFingerprint } from "./forge-profile";
+import { forgeVaultKeyForId } from "./forge-vault";
 import { tryGetContractState } from "./ws";
-import { hubOwnerContractsReady } from "./owner-constants";
+import { forgeOwnerContractsReady } from "./owner-constants";
 
 export type AccountContractReach = "ok" | "missing" | "unavailable" | "n/a";
 
@@ -16,7 +16,7 @@ export interface AccountHealthResult {
 }
 
 async function soft(
-  key: ReturnType<typeof hubProfileKeyForFingerprint>,
+  key: ReturnType<typeof forgeProfileKeyForFingerprint>,
 ): Promise<"ok" | "missing"> {
   if (!key) return "missing";
   const bytes = await tryGetContractState(key);
@@ -27,7 +27,7 @@ export async function probeAccountHealth(input: {
   fingerprint: string | null | undefined;
   vaultId: string | null | undefined;
 }): Promise<AccountHealthResult> {
-  if (!hubOwnerContractsReady()) {
+  if (!forgeOwnerContractsReady()) {
     return {
       profile: "unavailable",
       vault: "unavailable",
@@ -40,10 +40,10 @@ export async function probeAccountHealth(input: {
   let vault: AccountContractReach = "n/a";
 
   if (input.fingerprint) {
-    profile = await soft(hubProfileKeyForFingerprint(input.fingerprint));
+    profile = await soft(forgeProfileKeyForFingerprint(input.fingerprint));
   }
   if (input.vaultId) {
-    vault = await soft(hubVaultKeyForId(input.vaultId));
+    vault = await soft(forgeVaultKeyForId(input.vaultId));
   }
 
   const bits: string[] = [];

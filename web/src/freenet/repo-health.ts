@@ -1,5 +1,5 @@
 /**
- * Repo-level Freenet reachability: tip packs + HubRegistry entry + HubRepoMeta.
+ * Repo-level Freenet reachability: tip packs + ForgeRegistry entry + ForgeRepoMeta.
  */
 import type { TipBundle } from "../tip-browse/decode-wasm";
 import {
@@ -8,20 +8,20 @@ import {
   type PackHealthProbeResult,
   type RescueNeed,
 } from "./pack-health";
-import { hubRegistryKey } from "./hub-registry";
-import { hubRepoKeyForPrefix } from "./hub-repo";
+import { forgeRegistryKey } from "./forge-registry";
+import { forgeRepoKeyForPrefix } from "./forge-repo";
 import { tryGetContractState } from "./ws";
-import { hubOwnerContractsReady } from "./owner-constants";
+import { forgeOwnerContractsReady } from "./owner-constants";
 
 export type ContractReach = "ok" | "missing" | "skipped" | "unavailable";
 
 export interface RepoHealthProbeResult {
   packs: PackHealthProbeResult;
-  /** HubRegistry contract reachable and this prefix listed (when expectRegistered). */
+  /** ForgeRegistry contract reachable and this prefix listed (when expectRegistered). */
   registry: ContractReach;
   /** True when prefix was found in registry repos map. */
   listed: boolean;
-  /** HubRepoMeta soft-GET (settings/channels envelope). */
+  /** ForgeRepoMeta soft-GET (settings/channels envelope). */
   repoMeta: ContractReach;
   /** Combined rescue/ops urgency (packs dominate; missing Hub contracts bump high). */
   rescueNeed: RescueNeed;
@@ -35,13 +35,13 @@ function bumpNeed(a: RescueNeed, b: RescueNeed): RescueNeed {
 }
 
 async function softReach(
-  key: ReturnType<typeof hubRegistryKey>,
+  key: ReturnType<typeof forgeRegistryKey>,
   timeoutMs?: number,
 ): Promise<"ok" | "missing"> {
   if (!key) return "missing";
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // const bytes = await tryGetContractState(key);
-  // NEW CODE - TESTING: optional shorter timeout (missing HubRepoMeta was ~4s)
+  // NEW CODE - TESTING: optional shorter timeout (missing ForgeRepoMeta was ~4s)
   const bytes = await tryGetContractState(key, {
     timeoutMs: timeoutMs ?? undefined,
   });
@@ -70,7 +70,7 @@ export async function probeRepoHealth(
 
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // const packs = await probePackHealth(tippedBundles);
-  // then serial registry + HubRepoMeta soft-GETs (missing meta ≈ full soft timeout)
+  // then serial registry + ForgeRepoMeta soft-GETs (missing meta ≈ full soft timeout)
   // NEW CODE - TESTING: packs ‖ hub soft-checks; skip meta GET when unregistered
 
   const hubProbe = async (): Promise<{
@@ -78,7 +78,7 @@ export async function probeRepoHealth(
     listed: boolean;
     repoMeta: ContractReach;
   }> => {
-    if (!hubOwnerContractsReady()) {
+    if (!forgeOwnerContractsReady()) {
       return {
         registry: expectRegistered ? "unavailable" : "skipped",
         listed: false,
@@ -90,7 +90,7 @@ export async function probeRepoHealth(
     let listed = false;
     let repoMeta: ContractReach = "skipped";
 
-    const regKey = hubRegistryKey();
+    const regKey = forgeRegistryKey();
     if (!regKey) {
       registry = expectRegistered ? "unavailable" : "skipped";
     } else if (expectRegistered) {
@@ -110,18 +110,18 @@ export async function probeRepoHealth(
         }
       }
     } else {
-      // Unregistered: don't block on HubRegistry soft-GET for health chrome.
+      // Unregistered: don't block on ForgeRegistry soft-GET for health chrome.
       registry = "skipped";
       listed = false;
     }
 
     if (!expectRegistered) {
-      // HubRepoMeta is created on first settings write — no network for "Not created".
+      // ForgeRepoMeta is created on first settings write — no network for "Not created".
       return { registry, listed, repoMeta: "missing" };
     }
 
-    const metaKey = hubRepoKeyForPrefix(prefix);
-    // Short miss timeout: absent HubRepoMeta used to wait the full soft-GET (~4s).
+    const metaKey = forgeRepoKeyForPrefix(prefix);
+    // Short miss timeout: absent ForgeRepoMeta used to wait the full soft-GET (~4s).
     repoMeta = await softReach(metaKey, 1_200);
     return { registry, listed, repoMeta };
   };
@@ -165,20 +165,20 @@ export async function probeRepoHealth(
   const bits: string[] = [packs.message];
   if (expectRegistered) {
     if (registry === "missing") {
-      bits.push("HubRegistry unreachable from this node.");
+      bits.push("ForgeRegistry unreachable from this node.");
     } else if (registry === "ok" && !listed) {
-      bits.push("Repo not listed on HubRegistry (Discover).");
+      bits.push("Repo not listed on ForgeRegistry (Discover).");
     } else if (registry === "ok" && listed) {
-      bits.push("Listed on HubRegistry.");
+      bits.push("Listed on ForgeRegistry.");
     }
   }
-  if (repoMeta === "ok") bits.push("HubRepoMeta reachable.");
+  if (repoMeta === "ok") bits.push("ForgeRepoMeta reachable.");
   else if (repoMeta === "missing" && (listed || expectRegistered)) {
     // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-    // bits.push("HubRepoMeta missing — settings/channels may be unavailable.");
+    // bits.push("ForgeRepoMeta missing — settings/channels may be unavailable.");
     // NEW CODE - TESTING: worker auto-provisions; copy shouldn't imply manual settings write
     bits.push(
-      "HubRepoMeta missing — background provision will create it for owners.",
+      "ForgeRepoMeta missing — background provision will create it for owners.",
     );
   }
 
@@ -204,8 +204,8 @@ export interface RepoRescueResult {
 }
 
 /**
- * Rescue tip packs (backup → IDB → network) and re-seed HubRegistry /
- * HubRepoMeta from the local backup snapshot when soft-GET shows them missing.
+ * Rescue tip packs (backup → IDB → network) and re-seed ForgeRegistry /
+ * ForgeRepoMeta from the local backup snapshot when soft-GET shows them missing.
  */
 export async function rescueRepo(
   prefix: string,
@@ -234,8 +234,8 @@ export async function rescueRepo(
     if (pin?.registry) {
       // OLD CODE - KEEP UNTIL CONFIRMED WORKING
       // const afterPacks = await probeRepoHealth(...) // re-probes all tip packs
-      // NEW CODE - TESTING: soft HubRegistry check only
-      const regKey = hubRegistryKey();
+      // NEW CODE - TESTING: soft ForgeRegistry check only
+      const regKey = forgeRegistryKey();
       let needRegistry = false;
       if (regKey && expectRegistered) {
         const raw = await tryGetContractState(regKey, { timeoutMs: 2_500 });
@@ -255,22 +255,22 @@ export async function rescueRepo(
         needRegistry = true;
       }
       if (needRegistry) {
-        opts?.onProgress?.("Restoring HubRegistry listing from backup…");
-        const { upsertHubRegistryEntry } = await import("./hub-registry");
-        await upsertHubRegistryEntry(pin.registry);
+        opts?.onProgress?.("Restoring ForgeRegistry listing from backup…");
+        const { upsertForgeRegistryEntry } = await import("./forge-registry");
+        await upsertForgeRegistryEntry(pin.registry);
         registryRestored = true;
-        bits.push("Restored HubRegistry listing from backup.");
+        bits.push("Restored ForgeRegistry listing from backup.");
       }
     }
     if (pin?.repoMeta && expectRegistered) {
-      const metaKey = hubRepoKeyForPrefix(prefix);
+      const metaKey = forgeRepoKeyForPrefix(prefix);
       const metaReach = await softReach(metaKey, 1_200);
       if (metaReach === "missing") {
-        opts?.onProgress?.("Restoring HubRepoMeta from backup…");
-        const { restoreHubRepoMetaSnapshot } = await import("./hub-repo");
-        await restoreHubRepoMetaSnapshot(pin.repoMeta);
+        opts?.onProgress?.("Restoring ForgeRepoMeta from backup…");
+        const { restoreForgeRepoMetaSnapshot } = await import("./forge-repo");
+        await restoreForgeRepoMetaSnapshot(pin.repoMeta);
         metaRestored = true;
-        bits.push("Restored HubRepoMeta from backup.");
+        bits.push("Restored ForgeRepoMeta from backup.");
       }
     }
   } catch (err) {

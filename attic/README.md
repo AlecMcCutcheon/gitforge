@@ -1,6 +1,6 @@
 # Attic
 
-Historical pieces kept out of the active GitAtlas workflow.
+Historical pieces kept out of the active GitForge workflow.
 
 ## `local-api-server/`
 

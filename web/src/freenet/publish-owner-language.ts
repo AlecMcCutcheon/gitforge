@@ -1,16 +1,16 @@
 /**
- * Owner-only: after linguist runs, cache primary language on HubRegistry
+ * Owner-only: after linguist runs, cache primary language on ForgeRegistry
  * public_meta (dual-sig upsert). Skips when unchanged / not owner / unregistered.
  */
 import { currentIdentity, getCachedIdentity } from "./auth-api";
 import { peekCachedRegistry, upsertCachedRegistryEntry } from "./discover-cache";
-import { fetchHubRegistry } from "./hub-registry";
+import { fetchForgeRegistry } from "./forge-registry";
 import { nativeRegisterRepo } from "./owner-api";
 import {
   applyLanguageToPublicMeta,
   registryLanguageIsCurrent,
 } from "./registry-lang";
-import type { HubRegistration } from "../api";
+import type { ForgeRegistration } from "../api";
 
 const inflight = new Set<string>();
 
@@ -18,7 +18,7 @@ export async function maybePublishOwnerPrimaryLanguage(input: {
   prefix: string;
   tipCommit: string;
   primary: { name: string; color: string | null };
-}): Promise<HubRegistration | null> {
+}): Promise<ForgeRegistration | null> {
   const primaryName = input.primary.name.trim();
   const tip = input.tipCommit.trim();
   if (!primaryName || !tip || !input.prefix) return null;
@@ -33,7 +33,7 @@ export async function maybePublishOwnerPrimaryLanguage(input: {
   }
   if (!self?.fingerprint) {
     console.warn(
-      "[freenet-hub] language publish skipped: not signed in",
+      "[freenet-forge] language publish skipped: not signed in",
       input.prefix,
     );
     return null;
@@ -47,14 +47,14 @@ export async function maybePublishOwnerPrimaryLanguage(input: {
     let listing =
       peekCachedRegistry()?.find((r) => r.repo_prefix === input.prefix) ?? null;
     if (!listing) {
-      const { repos } = await fetchHubRegistry().catch(() => ({
-        repos: [] as HubRegistration[],
+      const { repos } = await fetchForgeRegistry().catch(() => ({
+        repos: [] as ForgeRegistration[],
       }));
       listing = repos.find((r) => r.repo_prefix === input.prefix) ?? null;
     }
     if (!listing) {
       console.warn(
-        "[freenet-hub] language publish skipped: not on HubRegistry",
+        "[freenet-forge] language publish skipped: not on ForgeRegistry",
         input.prefix,
       );
       return null;
@@ -64,7 +64,7 @@ export async function maybePublishOwnerPrimaryLanguage(input: {
       self.fingerprint.toLowerCase()
     ) {
       console.warn(
-        "[freenet-hub] language publish skipped: not registry owner",
+        "[freenet-forge] language publish skipped: not registry owner",
         input.prefix,
       );
       return null;
@@ -93,7 +93,7 @@ export async function maybePublishOwnerPrimaryLanguage(input: {
       /* optional */
     }
     console.info(
-      "[freenet-hub] published primary language",
+      "[freenet-forge] published primary language",
       primaryName,
       "for",
       input.prefix.slice(0, 12),
@@ -101,7 +101,7 @@ export async function maybePublishOwnerPrimaryLanguage(input: {
     return entry;
   } catch (e) {
     console.warn(
-      "[freenet-hub] owner language publish failed:",
+      "[freenet-forge] owner language publish failed:",
       e instanceof Error ? e.message : e,
     );
     return null;

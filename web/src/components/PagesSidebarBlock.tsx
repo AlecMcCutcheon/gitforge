@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { api, type HubPagesConfig } from "../api";
+import { api, type ForgePagesConfig } from "../api";
 import { Link } from "../spa-link";
 import { repoHref, type RepoHrefOpts } from "../lib/repo-path";
 
-function publicStatusLabel(pages: HubPagesConfig | null): string {
+function publicStatusLabel(pages: ForgePagesConfig | null): string {
   if (!pages?.enabled) return "Disabled";
   if (pages.status === "publishing") return "Publishing";
   if (pages.status === "error") return "Error";
@@ -23,12 +23,12 @@ export function PagesSidebarBlock({
   label: string;
   ownerOpts?: RepoHrefOpts;
   isOwner: boolean;
-  /** Listed on GitAtlas HubRegistry. */
+  /** Listed on GitForge ForgeRegistry. */
   registered?: boolean;
-  /** Current identity owns the HubRegistry listing. */
+  /** Current identity owns the ForgeRegistry listing. */
   isRegistryOwner?: boolean;
 }) {
-  const [pages, setPages] = useState<HubPagesConfig | null>(null);
+  const [pages, setPages] = useState<ForgePagesConfig | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -100,8 +100,8 @@ export function PagesSidebarBlock({
       {isOwner && (!registered || !isRegistryOwner) ? (
         <p className="muted tiny">
           {!registered
-            ? "Register this repository on GitAtlas before enabling Pages."
-            : "Only the GitAtlas registry owner can enable or update Pages."}
+            ? "Register this repository on GitForge before enabling Pages."
+            : "Only the GitForge registry owner can enable or update Pages."}
         </p>
       ) : null}
     </section>

@@ -1,4 +1,4 @@
-/** Resize an image File to a small data-URL for HubProfile custom avatar. */
+/** Resize an image File to a small data-URL for ForgeProfile custom avatar. */
 export async function resizeImageToDataUrl(
   file: File,
   maxPx = 128,
@@ -31,7 +31,7 @@ export async function resizeImageToDataUrl(
 }
 
 /**
- * HubProfile.avatar must stay empty for procedural identicons.
+ * ForgeProfile.avatar must stay empty for procedural identicons.
  * Only user-uploaded raster data-URLs are persisted — never SVG (generator)
  * or remote URLs that would freeze an old look into the contract.
  */

@@ -36,7 +36,7 @@ export function DeletedRepoPanel({
             on <span className="mono">{deletedAt}</span>
           </>
         ) : null}
-        . It no longer appears in GitAtlas Discover. Pack history may still
+        . It no longer appears in GitForge Discover. Pack history may still
         exist on Freenet until caches forget it.
       </p>
       <div className="gh-deleted-repo-actions">

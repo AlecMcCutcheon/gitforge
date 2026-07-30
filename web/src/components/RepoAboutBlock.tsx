@@ -1,9 +1,9 @@
 /**
- * Repo sidebar About: description (RepoState), website + topics (HubRegistry).
+ * Repo sidebar About: description (RepoState), website + topics (ForgeRegistry).
  * Gear / edit only for registry owner on a registered listing.
  */
 import { useEffect, useState } from "react";
-import { api, type HubRegistration } from "../api";
+import { api, type ForgeRegistration } from "../api";
 import { EditAboutModal } from "./EditAboutModal";
 
 export interface RepoAboutBlockProps {
@@ -13,11 +13,11 @@ export interface RepoAboutBlockProps {
   name?: string | null;
   /** Repo contract description (source of truth for About text). */
   description: string | null;
-  registration: HubRegistration | null;
+  registration: ForgeRegistration | null;
   /** Registry owner only — shows gear + edit modal. */
   canEdit: boolean;
   onDescriptionSaved?: (description: string) => void;
-  onRegistrationSaved?: (registration: HubRegistration) => void;
+  onRegistrationSaved?: (registration: ForgeRegistration) => void;
   /** Fallback when description empty and no website/topics (empty vs filled repo). */
   emptyHint?: string;
 }
@@ -76,7 +76,7 @@ export function RepoAboutBlock({
 }: RepoAboutBlockProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [localDesc, setLocalDesc] = useState<string | null>(null);
-  const [localReg, setLocalReg] = useState<HubRegistration | null>(null);
+  const [localReg, setLocalReg] = useState<ForgeRegistration | null>(null);
   // NEW CODE - TESTING: Pages site URL for About “use same as Pages” checkbox
   const [pagesSiteUrl, setPagesSiteUrl] = useState<string | null>(null);
 
