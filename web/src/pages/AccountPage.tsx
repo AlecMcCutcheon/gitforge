@@ -511,6 +511,10 @@ export function AccountPage() {
         fingerprint: result.identity.fingerprint,
       });
       setFingerprintWordList(result.fingerprint_words);
+      // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+      // setProfileEmail(result.identity.email);
+      // NEW CODE - TESTING: seed Public profile fields before backup → hub
+      setProfileName(result.identity.name || username);
       setProfileEmail(result.identity.email);
       setVaultId(result.vault_id);
       setVaultBackupEnabled(false);
@@ -590,6 +594,13 @@ export function AccountPage() {
       setBundleFileName("");
       setBundlePassphrase("");
       setRecoveryPhrase("");
+      // NEW CODE - TESTING: seed profile fields before hub paints (refresh follows)
+      const restored = getCachedIdentity();
+      if (restored) {
+        setIdentity(restored);
+        setProfileName(restored.name || "");
+        setProfileEmail(restored.email || "");
+      }
       setView("hub");
       setSettingsSection("profile");
     },
@@ -693,6 +704,7 @@ export function AccountPage() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
+                  disabled={busy}
                   autoComplete="username"
                   autoCapitalize="none"
                   spellCheck={false}
@@ -762,9 +774,11 @@ export function AccountPage() {
                     restoreTab === id ? "auth-tab active" : "auth-tab"
                   }
                   onClick={() => {
+                    if (busy) return;
                     setRestoreTab(id);
                     setError(null);
                   }}
+                  disabled={busy}
                 >
                   {label}
                 </button>
@@ -780,6 +794,7 @@ export function AccountPage() {
                     <input
                       type="file"
                       accept=".bundle,application/octet-stream"
+                      disabled={busy}
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
@@ -802,6 +817,7 @@ export function AccountPage() {
                       type="password"
                       value={bundlePassphrase}
                       onChange={(e) => setBundlePassphrase(e.target.value)}
+                      disabled={busy}
                       autoComplete="off"
                       spellCheck={false}
                       placeholder="Six words (empty if --no-passphrase)"
@@ -815,6 +831,7 @@ export function AccountPage() {
                     value={recoveryPhrase}
                     onChange={(e) => setRecoveryPhrase(e.target.value)}
                     rows={4}
+                    disabled={busy}
                     spellCheck={false}
                     autoCapitalize="none"
                     autoCorrect="off"
@@ -1059,8 +1076,10 @@ export function AccountPage() {
               <div className="settings-profile-grid">
                 <form
                   className="settings-form"
+                  aria-busy={busy || vaultEnsureBusy}
                   onSubmit={(e) => {
                     e.preventDefault();
+                    if (busy || vaultEnsureBusy) return;
                     void run(async () => {
                       await updatePublicProfile({
                         vault_id: vaultId,
@@ -1078,12 +1097,19 @@ export function AccountPage() {
                     });
                   }}
                 >
+                  {/* OLD CODE - KEEP UNTIL CONFIRMED WORKING
+                  Profile inputs stayed editable while create/restore/vault ensure
+                  ran — blank fields could be typed into and then overwritten.
+                  */}
+                  {/* NEW CODE - TESTING: lock fields while busy or vault ensure */}
                   <label className="settings-field">
                     <span className="settings-label">Display name</span>
                     <input
                       value={profileName}
                       onChange={(e) => setProfileName(e.target.value)}
                       required
+                      disabled={busy || vaultEnsureBusy}
+                      readOnly={busy || vaultEnsureBusy}
                     />
                   </label>
                   {/* OLD CODE - KEEP UNTIL CONFIRMED WORKING
@@ -1106,6 +1132,8 @@ export function AccountPage() {
                       onChange={(e) => setProfileEmail(e.target.value)}
                       autoComplete="off"
                       spellCheck={false}
+                      disabled={busy || vaultEnsureBusy}
+                      readOnly={busy || vaultEnsureBusy}
                     />
                     <span className="settings-hint muted tiny">
                       Git-style author metadata on commits and Hub listings —
@@ -1115,7 +1143,7 @@ export function AccountPage() {
                       type="button"
                       className="btn secondary"
                       style={{ marginTop: "0.5rem", alignSelf: "flex-start" }}
-                      disabled={busy || !identity}
+                      disabled={busy || vaultEnsureBusy || !identity}
                       onClick={() => {
                         if (!identity) return;
                         setProfileEmail(
@@ -1132,6 +1160,8 @@ export function AccountPage() {
                       value={bio}
                       onChange={(e) => setBio(e.target.value)}
                       rows={3}
+                      disabled={busy || vaultEnsureBusy}
+                      readOnly={busy || vaultEnsureBusy}
                     />
                   </label>
                   <label className="settings-field">
@@ -1139,6 +1169,8 @@ export function AccountPage() {
                     <input
                       value={profileUrl}
                       onChange={(e) => setProfileUrl(e.target.value)}
+                      disabled={busy || vaultEnsureBusy}
+                      readOnly={busy || vaultEnsureBusy}
                     />
                   </label>
                   {/* OLD CODE - KEEP UNTIL CONFIRMED WORKING
@@ -1155,8 +1187,12 @@ export function AccountPage() {
                     scenario="save-profile"
                     step={opStep}
                   />
-                  <button type="submit" className="btn" disabled={busy}>
-                    <BusyLabel
+                  <button
+                    type="submit"
+                    className="btn"
+                    disabled={busy || vaultEnsureBusy}
+                  >
+                      <BusyLabel
                       busy={busy && settingsSection === "profile"}
                       busyText={defaultBusyLabel("save-profile")}
                       idleText="Save profile"
@@ -1177,13 +1213,20 @@ export function AccountPage() {
                   Upload was overlaid on the image; "Use identicon" only when set.
                   NEW CODE - TESTING: Upload + Reset side by side; Reset clears to null */}
                   <div className="settings-avatar-actions">
-                    <label className="settings-avatar-edit btn secondary">
+                    <label
+                      className={`settings-avatar-edit btn secondary${
+                        busy || vaultEnsureBusy ? " disabled" : ""
+                      }`}
+                      aria-disabled={busy || vaultEnsureBusy}
+                    >
                       Upload
                       <input
                         type="file"
                         accept="image/*"
                         hidden
+                        disabled={busy || vaultEnsureBusy}
                         onChange={(e) => {
+                          if (busy || vaultEnsureBusy) return;
                           const file = e.target.files?.[0];
                           if (!file) return;
                           void resizeImageToDataUrl(file).then(setAvatar);
@@ -1198,6 +1241,7 @@ export function AccountPage() {
                     <button
                       type="button"
                       className="btn secondary"
+                      disabled={busy || vaultEnsureBusy}
                       onClick={() => {
                         setAvatar("");
                         setNote(

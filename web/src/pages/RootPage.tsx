@@ -4,7 +4,8 @@ import {
   getCachedIdentity,
   onAuthSessionChange,
 } from "../freenet/auth-api";
-import { PageLoadingOverlay } from "../components/PageLoadingOverlay";
+// OLD CODE - KEEP UNTIL CONFIRMED WORKING (only used by gated skeleton path)
+// import { PageLoadingOverlay } from "../components/PageLoadingOverlay";
 import { DiscoverPage } from "./HomePage";
 import { LandingPage } from "./LandingPage";
 
@@ -14,12 +15,19 @@ import { LandingPage } from "./LandingPage";
 export function RootPage() {
   const cachedAtStart = getCachedIdentity() != null;
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-  // Blocked the whole route on currentIdentity() even when sessionStorage had
-  // an identity — felt fine on SPA nav (warm memory) but slow on hard refresh.
-  // NEW CODE - TESTING: paint from session cache immediately; reconcile after.
-  const [ready, setReady] = useState(true);
+  // Held landing/discover skeletons until GetIdentity finished (~12–24s after
+  // wipe when the identity delegate is cold/missing). Site assets were fine;
+  // the SPA gate made `/` feel broken.
+  // const [ready, setReady] = useState(true);
+  // const [signedIn, setSignedIn] = useState(cachedAtStart);
+  // const [probing, setProbing] = useState(!cachedAtStart);
+  // …probe then:
+  // if (!ready || (probing && !signedIn && !cachedAtStart)) {
+  //   return <PageLoadingOverlay skeleton={…} message="" />;
+  // }
+  // NEW CODE - TESTING: paint Landing/Discover immediately from session hint;
+  // identity probe upgrades/downgrades in the background.
   const [signedIn, setSignedIn] = useState(cachedAtStart);
-  const [probing, setProbing] = useState(!cachedAtStart);
 
   useEffect(() => {
     let cancelled = false;
@@ -29,10 +37,9 @@ export function RootPage() {
         if (!cancelled) {
           setSignedIn(Boolean(id ?? getCachedIdentity()));
         }
-      } finally {
+      } catch {
         if (!cancelled) {
-          setProbing(false);
-          setReady(true);
+          setSignedIn(Boolean(getCachedIdentity()));
         }
       }
     })();
@@ -44,17 +51,6 @@ export function RootPage() {
       unsub();
     };
   }, []);
-
-  // No session hint yet — briefly wait for the first identity probe so we don’t
-  // flash Discover for signed-out visitors.
-  if (!ready || (probing && !signedIn && !cachedAtStart)) {
-    return (
-      <PageLoadingOverlay
-        skeleton={signedIn || cachedAtStart ? "discover" : "landing"}
-        message=""
-      />
-    );
-  }
 
   return signedIn ? <DiscoverPage /> : <LandingPage />;
 }

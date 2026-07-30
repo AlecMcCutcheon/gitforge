@@ -991,6 +991,13 @@ button {
   justify-content: center;
 }
 
+.settings-avatar-edit.disabled,
+.settings-avatar-edit[aria-disabled="true"] {
+  opacity: 0.55;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
 .settings-avatar-edit {
   /* OLD CODE - KEEP UNTIL CONFIRMED WORKING
   position: absolute;

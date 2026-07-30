@@ -207,9 +207,9 @@ export function RepoSettingsView({
   const [pagesLoading, setPagesLoading] = useState(false);
   const [pagesError, setPagesError] = useState<string | null>(null);
 
-  // NEW CODE - TESTING: join module-level ensure (same job as RepoBackupWorker).
-  // Does not abort on navigate — only drops UI wait state.
-  const [provisioning, setProvisioning] = useState(false);
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // const [provisioning, setProvisioning] = useState(false);
+  // NEW CODE - TESTING: no Settings auto-provision spinner when unregistered
   const [provisionedOk, setProvisionedOk] = useState(registered);
   // NEW CODE - TESTING: may flip true after auto-register before parent re-renders
   const [localRegistryOwner, setLocalRegistryOwner] = useState(
@@ -224,31 +224,16 @@ export function RepoSettingsView({
   }, [isRegistryOwnerProp]);
   useEffect(() => {
     if (!websiteMode || !prefix || !isOwner) return;
-    let cancelled = false;
     // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-    // Always setProvisioning(true) — blocked Settings UI while ForgeRepoMeta Put
-    // hung/timed out even when already registered.
-    // NEW CODE - TESTING: registered → background ensure only; unregistered waits
-    if (registered) {
-      setProvisionedOk(true);
-      void import("../freenet/forge-repo")
-        .then(({ ensureOwnerRepoSideContracts }) =>
-          ensureOwnerRepoSideContracts({
-            prefix,
-            label,
-            name: repo.name ?? null,
-            description: repo.description ?? null,
-          }),
-        )
-        .catch((e) => {
-          console.warn(
-            "[settings] ensure owner contracts:",
-            e instanceof Error ? e.message : e,
-          );
-        });
+    // Unregistered + site key → ensureOwnerRepoSideContracts auto-registered
+    // and created ForgeRepoMeta ("Preparing settings…"). Opening Settings should
+    // not list the repo for you.
+    // NEW CODE - TESTING: Settings only ensures meta when already on GFR
+    if (!registered) {
+      setProvisionedOk(false);
       return;
     }
-    setProvisioning(true);
+    setProvisionedOk(true);
     void import("../freenet/forge-repo")
       .then(({ ensureOwnerRepoSideContracts }) =>
         ensureOwnerRepoSideContracts({
@@ -256,35 +241,15 @@ export function RepoSettingsView({
           label,
           name: repo.name ?? null,
           description: repo.description ?? null,
+          skipRegister: true,
         }),
       )
-      .then(async (result) => {
-        if (cancelled) return;
-        if (result.registration) {
-          setProvisionedOk(true);
-          const fp = result.registration.identity_fingerprint;
-          const session =
-            (await import("../freenet/auth-api")).getCachedIdentity()
-              ?.fingerprint ?? null;
-          if (fp && session && fp === session) {
-            setLocalRegistryOwner(true);
-          }
-        }
-      })
       .catch((e) => {
-        if (!cancelled) {
-          console.warn(
-            "[settings] ensure owner contracts:",
-            e instanceof Error ? e.message : e,
-          );
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setProvisioning(false);
+        console.warn(
+          "[settings] ensure owner contracts:",
+          e instanceof Error ? e.message : e,
+        );
       });
-    return () => {
-      cancelled = true;
-    };
   }, [
     websiteMode,
     prefix,
@@ -657,27 +622,20 @@ export function RepoSettingsView({
   };
 
   if (!provisionedOk && !registered) {
-    if (provisioning && isOwner) {
-      return (
-        <section className="gh-repo-settings">
-          <header className="gh-repo-settings-header">
-            <h1>Preparing settings…</h1>
-            <p className="muted">
-              Creating missing {brand.displayName} contracts for this repository (registry
-              listing and repo settings).
-            </p>
-          </header>
-        </section>
-      );
-    }
+    // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+    // if (provisioning && isOwner) {
+    //   return (…Preparing settings… Creating missing contracts…);
+    // }
+    // NEW CODE - TESTING: never auto-provision from Settings when unlisted
     return (
       <section className="gh-repo-settings">
         <header className="gh-repo-settings-header">
           <h1>Settings unavailable</h1>
           <p className="muted">
-            Register this repository on {brand.displayName} first. Settings (delete,
-            collaborators, and other {brand.displayName}-only controls) are gated by the
-            registry owner fingerprint.
+            Register this repository on {brand.displayName} first. Settings
+            (delete, collaborators, and other {brand.displayName}-only controls)
+            require a GFR listing — opening Settings does not register or create
+            repo contracts for you.
           </p>
         </header>
         <p>

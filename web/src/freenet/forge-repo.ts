@@ -277,9 +277,10 @@ export async function ensureForgeRepoMeta(prefix: string): Promise<ForgeRepoMeta
 }
 
 /**
- * Owner-only: for repos created before ForgeRegistry / ForgeRepoMeta existed,
- * register the listing (if missing) and provision ForgeRepoMeta + seal_pk.
- * No-op when the site key is not on this identity.
+ * Owner-only: ensure ForgeRepoMeta for a prefix that already has a site key.
+ * Does **not** auto-register on GFR unless `allowRegister: true` (explicit
+ * Register flows only). Tip/backup/Settings call without that flag — no listing
+ * means no ForgeRepoMeta create.
  * Deduped per prefix — safe to call from the global worker and from UI.
  */
 const ownerProvisionInflight = new Map<
@@ -321,8 +322,10 @@ export async function ensureOwnerRepoSideContracts(input: {
   label: string;
   name?: string | null;
   description?: string | null;
-  /** When true, skip ForgeRegistry Put if missing (meta-only). */
+  /** When true, skip ForgeRegistry Put if missing (meta-only). Default behavior. */
   skipRegister?: boolean;
+  /** Explicit Register only — list on GFR when missing. */
+  allowRegister?: boolean;
 }): Promise<OwnerRepoProvisionResult> {
   const prefix = input.prefix.trim();
   const empty: OwnerRepoProvisionResult = {
@@ -363,12 +366,13 @@ export async function ensureOwnerRepoSideContracts(input: {
       }
       if (
         !registration &&
-        !input.skipRegister &&
+        input.allowRegister === true &&
+        input.skipRegister !== true &&
         !isLocallyRemovedRegistryPrefix(prefix)
       ) {
         // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-        // Settings stayed "Register first" for pre-registry repos forever.
-        // NEW CODE - TESTING: owner with site key auto-lists on ForgeRegistry
+        // Settings / tip worker auto-listed any owned prefix on ForgeRegistry.
+        // NEW CODE - TESTING: only explicit allowRegister registers
         registration = await nativeRegisterRepo({
           prefix,
           label: (input.label || row.label || prefix).trim() || prefix,
@@ -382,15 +386,36 @@ export async function ensureOwnerRepoSideContracts(input: {
           /* optional */
         }
         console.info(
-          "[freenet-forge] auto-registered owner repo on ForgeRegistry",
+          "[freenet-forge] registered owner repo on ForgeRegistry",
           prefix.slice(0, 12),
         );
+      }
+      // No GFR listing → do not create ForgeRepoMeta (Settings is register-gated)
+      if (!registration) {
+        return {
+          registration: null,
+          meta: null,
+          createdRegistration: false,
+          createdMeta: false,
+        };
       }
     } catch (e) {
       console.warn(
         "[freenet-forge] ensure ForgeRegistry listing:",
         e instanceof Error ? e.message : e,
       );
+    }
+
+    // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+    // Ensured ForgeRepoMeta even when GFR listing was missing (Settings auto-path).
+    // NEW CODE - TESTING: meta only after a live/cached registration
+    if (!registration) {
+      return {
+        registration: null,
+        meta: null,
+        createdRegistration: false,
+        createdMeta: false,
+      };
     }
 
     let createdMeta = false;
