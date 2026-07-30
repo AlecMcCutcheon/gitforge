@@ -3796,6 +3796,9 @@ select:focus {
 
 .readme {
   margin-top: 16px;
+  /* NEW CODE - TESTING: allow long README tokens to constrain to column */
+  min-width: 0;
+  max-width: 100%;
 }
 
 .readme pre,
@@ -3825,6 +3828,9 @@ select:focus {
   border: 1px solid var(--borderColor-default);
   border-radius: var(--radius);
   background: var(--bgColor-default);
+  /* NEW CODE - TESTING: flex/grid parents need this so md-preview can shrink */
+  min-width: 0;
+  max-width: 100%;
 }
 
 .md-panel.file-view,
@@ -4457,6 +4463,15 @@ select:focus {
   line-height: 1.5;
   color: var(--fgColor-default);
   font-size: 16px;
+  /* OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  (no wrap rules — long URLs / invitation strings overflowed after one soft wrap)
+  */
+  /* NEW CODE - TESTING: keep preview inside the panel; break long tokens */
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .md-preview > :first-child {
@@ -4474,6 +4489,8 @@ select:focus {
   line-height: 1.25;
   margin: 24px 0 16px;
   font-weight: 600;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .md-preview h1 {
@@ -4501,8 +4518,19 @@ select:focus {
   margin: 0 0 16px;
 }
 
+.md-preview p,
+.md-preview li,
+.md-preview blockquote,
+.md-preview td,
+.md-preview th {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .md-preview a {
   color: var(--fgColor-link);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .md-preview code {
@@ -4511,6 +4539,10 @@ select:focus {
   background: var(--bgColor-neutral-muted);
   border-radius: 6px;
   padding: 0.2em 0.4em;
+  /* NEW CODE - TESTING: inline code with long hashes/URLs must reflow */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .md-preview pre {
@@ -4520,6 +4552,14 @@ select:focus {
   border: 1px solid var(--borderColor-default);
   border-radius: var(--radius);
   line-height: 1.45;
+  /* OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  (default white-space: pre — long lines only scrolled, never reflowed)
+  */
+  /* NEW CODE - TESTING: wrap long fenced lines; still scroll if needed */
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .md-preview pre code {
@@ -4527,6 +4567,7 @@ select:focus {
   padding: 0;
   font-size: 85%;
   border-radius: 0;
+  white-space: inherit;
 }
 
 .md-preview blockquote {
