@@ -51,6 +51,9 @@ and the Hub contracts that make that usable day to day.
   and other contracts can go cold if nothing on *this* node is retaining them;
   rescue cannot invent bytes that local eviction already dropped. Keep important
   work reachable from your node (use, republish, or other retention you trust).
+- **Public goods (Kairos)** — In website mode the SPA mounts a delayed,
+  non-blocking Kairos network-duty worker (soft-Get / Subscribe / pulse /
+  observe). It must not block first paint; failures only log.
 
 ## Layout
 
