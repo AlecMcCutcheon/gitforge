@@ -106,6 +106,11 @@ See [`docs/08-website-publish.md`](docs/08-website-publish.md).
 | `FREENET_WS_URL` | `ws://127.0.0.1:7509/v1/contract/command` | Node WS |
 | `GITFORGE_PAGES_BASE` | `http://127.0.0.1:7509/v1/contract/web` | Pages base URL |
 
+## Community
+
+**River chat (GitForge room invite):**  
+http://127.0.0.1:7509/v1/contract/web/raAqMhMG7KUpXBU2SxgCQ3Vh4PYjttxdSWd9ftV7RLv/?invitation=2mPwJjYYGuUU3pWxcatqBVmMRfvPpc9LUnr71kP6PTD1epT2AEnJ8TSD1EnLvK2txmbgge1XHAdP38gfcFqLaDeWyYbs9jmXEGgh29Uiho1kCujNGjhp47amuJMQ1ckwrDXJ8myZbsdYQbA1TvcZMm6KnWcPKPU8eH4y23h2Lj8A2WzdM3LREzDKSuv4fYUZSpTFYDbkSn61ZLzBeSXMbXwMVLjtEreLG21LtxPNxNphNrNYmsMGd28RDiaQedZrhdwZyHs1TV6DVrVs2bqbUw94GVWPbfG1R5JvwZnByCPQ7a13eaRw3eUjNchAMDpLa6VWzf1MmGD6XpNTFbBW8h8J5paSSZU1Yfng4QiZnRZTgfM8uFyERPufzr2T6JX9QAnyYWxMNtat9dF7c7gCRYbm8gMsYh9quQNPD69LuEsxXTmJhv77DP6h3z9LeevqPywCHycs9udd2Gdf2LaBFHy2FQ15
+
 ## Contributing
 
 Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a feature PR.
