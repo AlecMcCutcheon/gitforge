@@ -2,8 +2,12 @@
  * Always-mounted public-goods worker: Kairos network duty (soft-Get /
  * Subscribe / pulse / observe). Must never block SPA load — delayed start,
  * all errors swallowed to console.
+ *
+ * Witness is anchored to GitForge identity when signed in (deterministic
+ * seed), so reloads do not mint Sybil pulse keys.
  */
 import { useEffect } from "react";
+import { onAuthSessionChange, getCachedIdentity } from "../freenet/auth-api";
 import { watchKairosNetworkDuty } from "../freenet/kairos-duty";
 import { isBrowserNativeMode } from "../tip-browse";
 
@@ -16,7 +20,11 @@ export function KairosDutyWorker() {
 
     let stop: (() => void) | null = null;
     let cancelled = false;
-    const startTimer = setTimeout(() => {
+    let startTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const startWatch = () => {
+      stop?.();
+      stop = null;
       if (cancelled) return;
       // NEW CODE - TESTING: fire-and-forget watch; never await in render path
       stop = watchKairosNetworkDuty({
@@ -41,6 +49,7 @@ export function KairosDutyWorker() {
               "[gitforge] kairos duty",
               reason,
               result.plan?.summary,
+              result.identity?.source,
             );
           }
         },
@@ -51,11 +60,28 @@ export function KairosDutyWorker() {
           );
         },
       });
-    }, START_DELAY_MS);
+    };
+
+    const scheduleStart = (delayMs: number) => {
+      if (startTimer) clearTimeout(startTimer);
+      startTimer = setTimeout(() => {
+        startTimer = null;
+        if (!cancelled) startWatch();
+      }, delayMs);
+    };
+
+    scheduleStart(START_DELAY_MS);
+
+    // Re-bind when sign-in lands so we upgrade from guest random → forge-derived.
+    const unsubAuth = onAuthSessionChange(() => {
+      if (cancelled) return;
+      if (getCachedIdentity()) scheduleStart(1_500);
+    });
 
     return () => {
       cancelled = true;
-      clearTimeout(startTimer);
+      unsubAuth();
+      if (startTimer) clearTimeout(startTimer);
       stop?.();
     };
   }, []);

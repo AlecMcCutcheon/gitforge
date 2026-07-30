@@ -38,6 +38,9 @@ const EMPTY_STATE = JSON.stringify({
 
 /** Same key as Kairos site so soft-nav / shared origin accrues one witness. */
 const WITNESS_SK_KEY = "kairos.witness.sk.v2";
+const NAME_BAG_PREFIX = "__kairos_store_v1__";
+/** Domain-separated BLAKE3 → ed25519 seed from GitForge identity (not the forge key itself). */
+const FORGE_WITNESS_DOMAIN = "kairos.witness.from-forge.v1\0";
 
 export type KairosObservation = {
   node_id: string;
@@ -83,7 +86,11 @@ export type KairosDutyPlan = {
 };
 
 export type KairosDutyResult = {
-  identity: { nodeId: string; label: string } | null;
+  identity: {
+    nodeId: string;
+    label: string;
+    source?: "forge" | "stored" | "random";
+  } | null;
   plan: KairosDutyPlan | null;
   pulsed: boolean;
   observed: string[];
@@ -139,26 +146,139 @@ function bytesToB64(u8: Uint8Array): string {
   return btoa(s);
 }
 
-let memSk: Uint8Array | null = null;
+function hexToBytes32(hex: string): Uint8Array | null {
+  const clean = hex.trim().toLowerCase().replace(/^0x/, "");
+  if (clean.length !== 64) return null;
+  const out = new Uint8Array(32);
+  for (let i = 0; i < 32; i++) {
+    const byte = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
+    if (Number.isNaN(byte)) return null;
+    out[i] = byte;
+  }
+  return out;
+}
 
-function loadOrCreateSecret(): Uint8Array {
-  if (memSk?.length === 32) return memSk;
-  let sk: Uint8Array | null = null;
+function readNameBag(): Record<string, string> {
   try {
-    sk = b64ToBytes(localStorage.getItem(WITNESS_SK_KEY) || "");
+    const n = String(window.name || "");
+    if (!n.startsWith(NAME_BAG_PREFIX)) return {};
+    const parsed = JSON.parse(n.slice(NAME_BAG_PREFIX.length)) as unknown;
+    return parsed && typeof parsed === "object"
+      ? (parsed as Record<string, string>)
+      : {};
   } catch {
-    sk = null;
+    return {};
   }
-  if (!sk) {
-    sk = ed25519.utils.randomPrivateKey();
+}
+
+function writeNameBagKey(key: string, value: string): void {
+  try {
+    const bag = readNameBag();
+    bag[key] = value;
+    window.name = NAME_BAG_PREFIX + JSON.stringify(bag);
+  } catch {
+    /* */
   }
+}
+
+function persistWitnessSk(sk: Uint8Array): void {
+  const b64 = bytesToB64(sk);
+  try {
+    localStorage.setItem(WITNESS_SK_KEY, b64);
+  } catch {
+    /* Freenet sandbox often blocks Web Storage */
+  }
+  writeNameBagKey(WITNESS_SK_KEY, b64);
+}
+
+function readStoredWitnessSk(): Uint8Array | null {
+  try {
+    const fromLs = b64ToBytes(localStorage.getItem(WITNESS_SK_KEY) || "");
+    if (fromLs) return fromLs;
+  } catch {
+    /* */
+  }
+  return b64ToBytes(readNameBag()[WITNESS_SK_KEY] || "");
+}
+
+/** Deterministic Kairos witness seed from GitForge identity seed (domain-separated). */
+export function witnessSkFromForgeSeedHex(seedHex: string): Uint8Array | null {
+  const seed = hexToBytes32(seedHex);
+  if (!seed) return null;
+  const domain = new TextEncoder().encode(FORGE_WITNESS_DOMAIN);
+  const concat = new Uint8Array(domain.length + seed.length);
+  concat.set(domain, 0);
+  concat.set(seed, domain.length);
+  return blake3(concat);
+}
+
+let memSk: Uint8Array | null = null;
+let memSkSource: "forge" | "stored" | "random" | null = null;
+
+/**
+ * Stable witness secret:
+ * 1) GitForge identity → deterministic (preferred; survives reload)
+ * 2) localStorage / window.name bag (Kairos-compatible)
+ * 3) random only when unsigned and nothing stored (last resort)
+ */
+async function loadWitnessSecret(): Promise<{
+  secretKey: Uint8Array;
+  source: "forge" | "stored" | "random";
+}> {
+  // Prefer forge identity every cycle so login upgrades off a random guest key.
+  try {
+    const { tryExportIdentitySeedHex } = await import("./auth-api");
+    const seedHex = await tryExportIdentitySeedHex();
+    if (seedHex) {
+      const sk = witnessSkFromForgeSeedHex(seedHex);
+      if (sk) {
+        memSk = sk;
+        memSkSource = "forge";
+        persistWitnessSk(sk);
+        return { secretKey: sk, source: "forge" };
+      }
+    }
+  } catch {
+    /* not signed in / export failed */
+  }
+
+  if (memSk?.length === 32 && memSkSource && memSkSource !== "random") {
+    return { secretKey: memSk, source: memSkSource };
+  }
+
+  const stored = readStoredWitnessSk();
+  if (stored) {
+    memSk = stored;
+    memSkSource = "stored";
+    return { secretKey: stored, source: "stored" };
+  }
+
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // Always randomPrivateKey() when localStorage failed → new witness every reload
+  // NEW CODE - TESTING: random only as guest fallback; persist via window.name
+  const sk = ed25519.utils.randomPrivateKey();
   memSk = sk;
-  try {
-    localStorage.setItem(WITNESS_SK_KEY, bytesToB64(sk));
-  } catch {
-    /* sandbox may block storage — mem still works for the session */
-  }
-  return sk;
+  memSkSource = "random";
+  persistWitnessSk(sk);
+  return { secretKey: sk, source: "random" };
+}
+
+async function getWitness(): Promise<{
+  secretKey: Uint8Array;
+  nodeId: string;
+  label: string;
+  source: "forge" | "stored" | "random";
+}> {
+  const { secretKey, source } = await loadWitnessSecret();
+  const publicKey = ed25519.getPublicKey(secretKey);
+  const nodeId = bs58.encode(publicKey);
+  const short = nodeId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toLowerCase();
+  return {
+    secretKey,
+    nodeId,
+    label: `kairos-${short || "node"}`,
+    source,
+  };
 }
 
 function pushField(out: number[], field: Uint8Array | string): void {
@@ -168,24 +288,12 @@ function pushField(out: number[], field: Uint8Array | string): void {
   out.push(0);
 }
 
-function getWitness(): { secretKey: Uint8Array; nodeId: string; label: string } {
-  const secretKey = loadOrCreateSecret();
-  const publicKey = ed25519.getPublicKey(secretKey);
-  const nodeId = bs58.encode(publicKey);
-  const short = nodeId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toLowerCase();
-  return {
-    secretKey,
-    nodeId,
-    label: `kairos-${short || "node"}`,
-  };
-}
-
 function signObservation(
+  w: { secretKey: Uint8Array; nodeId: string },
   domainStr: string,
   extraFields: string[],
   fields: [number, number, number],
 ): KairosObservation {
-  const w = getWitness();
   const parts: number[] = [];
   const domain = new TextEncoder().encode(domainStr);
   for (let i = 0; i < domain.length; i++) parts.push(domain[i]);
@@ -205,18 +313,24 @@ function signObservation(
   };
 }
 
-function signPulse(): KairosObservation {
+function signPulse(w: {
+  secretKey: Uint8Array;
+  nodeId: string;
+}): KairosObservation {
   const now = Date.now();
   const perf =
     typeof performance !== "undefined" ? Math.floor(performance.now()) : 0;
-  return signObservation("kairos.pulse.v1\0", [], [now, perf, 40]);
+  return signObservation(w, "kairos.pulse.v1\0", [], [now, perf, 40]);
 }
 
-function signStampObserve(requestId: string): KairosObservation {
+function signStampObserve(
+  w: { secretKey: Uint8Array; nodeId: string },
+  requestId: string,
+): KairosObservation {
   const now = Date.now();
   const perf =
     typeof performance !== "undefined" ? Math.floor(performance.now()) : 0;
-  return signObservation("kairos.stamp.observe.v1\0", [requestId], [
+  return signObservation(w, "kairos.stamp.observe.v1\0", [requestId], [
     now,
     perf,
     40,
@@ -353,8 +467,8 @@ export async function runKairosNetworkDuty(): Promise<KairosDutyResult> {
   }
 
   let state = initial;
-  const w = getWitness();
-  const identity = { nodeId: w.nodeId, label: w.label };
+  const w = await getWitness();
+  const identity = { nodeId: w.nodeId, label: w.label, source: w.source };
 
   const example = await ensureExampleStamp(key, state);
   if (example.opened) {
@@ -385,14 +499,14 @@ export async function runKairosNetworkDuty(): Promise<KairosDutyResult> {
   for (const action of plan.actions) {
     try {
       if (action.type === "pulse") {
-        const observation = signPulse();
+        const observation = signPulse(w);
         const delta = new TextEncoder().encode(
           JSON.stringify({ pulse: observation }),
         );
         await updateContract(wrapDeltaUpdate(key, delta), key);
         result.pulsed = true;
       } else if (action.type === "observe_stamp" && action.request_id) {
-        const observation = signStampObserve(action.request_id);
+        const observation = signStampObserve(w, action.request_id);
         const delta = new TextEncoder().encode(
           JSON.stringify({
             observe_stamp: {
@@ -469,9 +583,11 @@ export function watchKairosNetworkDuty(
       let result: KairosDutyResult;
       if (reason === "update" || reason === "queued-update") {
         const soft = await softEnsureKairos();
-        const w = soft.present ? getWitness() : null;
+        const w = soft.present ? await getWitness() : null;
         result = {
-          identity: w ? { nodeId: w.nodeId, label: w.label } : null,
+          identity: w
+            ? { nodeId: w.nodeId, label: w.label, source: w.source }
+            : null,
           plan: soft.state && w ? planNetworkDuty(soft.state, w.nodeId) : null,
           pulsed: false,
           observed: [],

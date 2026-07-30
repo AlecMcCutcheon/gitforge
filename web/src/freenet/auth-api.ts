@@ -107,6 +107,20 @@ function delayMs(ms: number): Promise<void> {
 }
 
 /**
+ * Cold peers only have the website contract — RegisterDelegate identity/pages
+ * WASM from public assets before ImportIdentity / CreateIdentity.
+ */
+async function ensureOwnerDelegatesReady(
+  onStatus?: (msg: string) => void,
+): Promise<void> {
+  // NEW CODE - TESTING
+  const { ensureOwnerDelegatesOnThisNode } = await import(
+    "./bootstrap-owner-tools"
+  );
+  await ensureOwnerDelegatesOnThisNode(onStatus);
+}
+
+/**
  * Identity seed for decrypt/vault ops. Uses tab memory when available;
  * otherwise ExportIdentity with one reconnect retry on WS drop.
  */
@@ -129,6 +143,18 @@ async function exportIdentitySeed(opts?: {
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+}
+
+/**
+ * Best-effort identity seed for public-goods (Kairos duty). Never throws —
+ * returns null when signed-out / export unavailable.
+ */
+export async function tryExportIdentitySeedHex(): Promise<string | null> {
+  try {
+    return await exportIdentitySeed();
+  } catch {
+    return memorySeedHex;
+  }
 }
 
 export interface CachedProfile {
@@ -1396,6 +1422,8 @@ export async function createIdentity(input: {
 }> {
   const username = input.username.trim();
   if (!username) throw new Error("username is required");
+  // NEW CODE - TESTING: cold peers need RegisterDelegate before ImportIdentity
+  await ensureOwnerDelegatesReady(input.onStatus);
   input.onStatus?.("Generating seed…");
   const seed_hex = generateSeedHex();
   const vault_id = vaultIdFromSeedHex(seed_hex);
@@ -1464,6 +1492,8 @@ export async function importFreenetGitIdentityBundle(input: {
   passphrase: string;
   onStatus?: (msg: string) => void;
 }): Promise<ForgeIdentityInfo> {
+  // NEW CODE - TESTING: cold peers need RegisterDelegate before ImportIdentity
+  await ensureOwnerDelegatesReady(input.onStatus);
   input.onStatus?.("Opening identity bundle…");
   const opened = openFreenetGitIdentityBundle(input.bytes, input.passphrase);
   const fallbackEmail = opened.email.trim()
@@ -2092,6 +2122,8 @@ export async function restoreFromRecoveryPhrase(input: {
   username?: string;
   onStatus?: (msg: string) => void;
 }): Promise<ForgeIdentityInfo> {
+  // NEW CODE - TESTING: cold peers need RegisterDelegate before ImportIdentity
+  await ensureOwnerDelegatesReady(input.onStatus);
   input.onStatus?.("Parsing recovery phrase…");
   const seed_hex = seedHexFromPhrase(input.phrase);
   const vault_id = vaultIdFromSeedHex(seed_hex);
@@ -2512,6 +2544,8 @@ export async function exportFreenetGitCliBundle(input?: {
 export async function linkIdentityBundle(
   raw: string,
 ): Promise<ForgeIdentityInfo> {
+  // NEW CODE - TESTING: cold peers need RegisterDelegate before ImportIdentity
+  await ensureOwnerDelegatesReady();
   const data = JSON.parse(raw) as IdentityExportBundle & {
     secret_key?: string;
     name?: string;
