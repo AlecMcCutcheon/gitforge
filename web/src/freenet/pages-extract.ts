@@ -39,6 +39,13 @@ export async function extractSiteFromTip(
   const branchNorm = normalizeBranch(branch);
   const root = normalizeRootPath(rootPath);
   const tip = await loadBrowserTip(prefix, branchNorm);
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // const allPaths = await listAllBlobPaths(tip.objects, tip.commit);
+  // NEW CODE - TESTING: await soft-fill — tip packs are incremental; site blobs
+  // often live only in older tipped packs (same as Code tree browse).
+  if (tip.softFill) {
+    await tip.softFill;
+  }
   const allPaths = await listAllBlobPaths(tip.objects, tip.commit);
 
   const files = new Map<string, Uint8Array>();

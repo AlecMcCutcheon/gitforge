@@ -661,6 +661,37 @@ export const api = {
       600_000,
     );
   },
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // pagesEnable / pagesSync / pagesDisable only
+  // NEW CODE - TESTING: create/update/url aliases for Pages API surface
+  /** Create / first publish (same as pagesEnable). */
+  pagesCreate(
+    prefix: string,
+    label: string,
+    body: { branch?: string; rootPath?: string; autoSync?: boolean } = {},
+  ): Promise<ForgePagesConfig> {
+    return api.pagesEnable(prefix, label, body);
+  },
+  /** Republish from tip when stale (same as pagesSync). */
+  pagesUpdate(prefix: string, label: string): Promise<ForgePagesConfig> {
+    return api.pagesSync(prefix, label);
+  },
+  /** Public Freenet website URL (+ contract key) for this repo’s Pages. */
+  async pagesUrl(
+    prefix: string,
+    label: string,
+  ): Promise<{
+    enabled: boolean;
+    siteUrl: string | null;
+    contractKey: string | null;
+  }> {
+    const cfg = await api.pages(prefix, label, false);
+    return {
+      enabled: cfg.enabled,
+      siteUrl: cfg.siteUrl,
+      contractKey: cfg.contractKey,
+    };
+  },
   registry: async () => {
     if (isBrowserNativeMode()) {
       const { fetchForgeRegistry } = await import("./freenet/forge-registry");

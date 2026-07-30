@@ -6575,10 +6575,33 @@ Also tried calc(100vh - 56|68px) — still overflowed: site-header,
   font: inherit;
 }
 
+/* OLD CODE - KEEP UNTIL CONFIRMED WORKING
+ * checkbox inherited width:100% + padding + border → stretched box next to label
+ */
+.gh-about-modal .gh-about-field input[type="checkbox"],
+.gh-about-modal .gh-about-field input[type="radio"] {
+  width: auto;
+  min-width: 1rem;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  flex-shrink: 0;
+  accent-color: var(--borderColor-accent-emphasis, #4493f8);
+}
+
 .gh-about-modal .gh-about-field input:focus,
 .gh-about-modal .gh-about-field textarea:focus {
   outline: 2px solid var(--borderColor-accent-emphasis, #4493f8);
   outline-offset: -1px;
+}
+
+.gh-about-modal .gh-about-field input[type="checkbox"]:focus,
+.gh-about-modal .gh-about-field input[type="radio"]:focus {
+  outline: 2px solid var(--borderColor-accent-emphasis, #4493f8);
+  outline-offset: 2px;
 }
 
 .gh-about-field-hint {
@@ -6586,8 +6609,16 @@ Also tried calc(100vh - 56|68px) — still overflowed: site-header,
 }
 
 .gh-about-pages-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   margin: 8px 0 0;
   font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
+  width: fit-content;
+  max-width: 100%;
+  cursor: pointer;
 }
 
 .gh-pages-sidebar-link {

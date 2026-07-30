@@ -91,10 +91,14 @@ params = verifying key bytes.
 
 Native (`isBrowserNativeMode()`):
 
-- `api.pages(prefix, label, autoSync?)`
-- `api.pagesEnable(prefix, label, { branch?, rootPath?, autoSync? })`
-- `api.pagesSync(prefix, label)`
+- `api.pages(prefix, label, autoSync?)` — status
+- `api.pagesEnable` / `api.pagesCreate` — first publish
+- `api.pagesSync` / `api.pagesUpdate` — republish from tip
 - `api.pagesDisable(prefix, label, { tombstone? })`
+- `api.pagesUrl(prefix, label)` — `{ enabled, siteUrl, contractKey }`
+
+CLI (`gitforge pages create|update|disable|url|status`) wraps the same native
+paths with an identity bundle.
 
 Bridge Express routes under `/api/r/.../pages*` remain for legacy hybrid
 installs only — no new investment.

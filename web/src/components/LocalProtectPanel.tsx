@@ -8,14 +8,18 @@ import { packContractKey, repoContractKey } from "../freenet/keys";
 import { fetchRepoState } from "../freenet/tip-fetch";
 import { summarizeRepoState, type TipBundle } from "../tip-browse/decode-wasm";
 import {
+  createScope,
   ensureRepoScopeAndSync,
   fetchNodeFeatures,
   fetchProtectStatus,
   findScope,
+  gitforgeTipPackMembership,
   isAppGrantedFromStatus,
   isScopeActive,
   repoGrantId,
+  retentionFromScope,
   revokeScope,
+  syncScope,
   tipPackKeysFromBundles,
   type ProtectStatus,
   type TipRetention,
@@ -90,6 +94,16 @@ export function LocalProtectPanel({
     void refresh();
   }, [refresh]);
 
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // retention always useState("current") — never read from live scope
+  // NEW CODE - TESTING: hydrate Tip retention from scope.member_hint after load
+  useEffect(() => {
+    if (!status) return;
+    const scope = findScope(status, grantId);
+    const fromScope = retentionFromScope(scope);
+    if (fromScope) setRetention(fromScope);
+  }, [status, grantId]);
+
   if (!available || !prefix || !repoKey) return null;
 
   const granted = isAppGrantedFromStatus(status);
@@ -151,6 +165,57 @@ export function LocalProtectPanel({
     }
   };
 
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // select disabled={busy || active} — retention frozen while pinned; reload always showed "current"
+  // NEW CODE - TESTING: while pinned, changing retention updates policy + sync-scope
+  const onRetentionChange = async (next: TipRetention) => {
+    setRetention(next);
+    if (!active) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const tipKeys = await tipKeysForPrefix(prefix, next);
+      const policy = {
+        kind: "anchor_plus_members" as const,
+        member_hint: gitforgeTipPackMembership(next),
+      };
+      const updated = await createScope({
+        grantId,
+        anchorKey: repoKey,
+        policy,
+        protectAnchor: true,
+      });
+      if (!updated.ok) {
+        setMsg(updated.error);
+        await refresh();
+        return;
+      }
+      const synced = await syncScope(grantId, tipKeys);
+      if (!synced.ok) {
+        setMsg(synced.error);
+        await refresh();
+        return;
+      }
+      try {
+        const { rememberProtectScope } = await import("../freenet/protect-prefs");
+        rememberProtectScope({
+          grant_id: grantId,
+          anchor_key: repoKey,
+          policy,
+          label: prefix,
+        });
+      } catch {
+        /* ignore */
+      }
+      setMsg(
+        `Retention updated — ${tipKeys.length} tip pack(s) on this node.`,
+      );
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <section className="gh-repo-settings-block local-protect-panel">
       <div className="local-protect-panel-head">
@@ -177,8 +242,10 @@ export function LocalProtectPanel({
           <select
             className="local-protect-select"
             value={retention}
-            disabled={busy || active}
-            onChange={(e) => setRetention(e.target.value as TipRetention)}
+            disabled={busy}
+            onChange={(e) =>
+              void onRetentionChange(e.target.value as TipRetention)
+            }
           >
             <option value="current">Latest tips only</option>
             <option value="last_n">Recent history (last 3)</option>

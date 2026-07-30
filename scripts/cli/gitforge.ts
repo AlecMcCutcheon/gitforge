@@ -14,13 +14,15 @@
 import { brand } from "./brand.ts";
 import { runVaultCli } from "./gitforge-vault.ts";
 import { runRepoCli } from "./gitforge-repo.ts";
+import { runPagesCli } from "./gitforge-pages.ts";
 
 function usage(): never {
-  console.error(`${brand.cliName} — ${brand.displayName} CLI (vault + repo owner ops)
+  console.error(`${brand.cliName} — ${brand.displayName} CLI (vault + repo + pages)
 
 Usage:
   ${brand.cliName} vault <sync-bundle|pull-bundle> [options]
   ${brand.cliName} repo  <about|register|unregister|rename|delete> [options]
+  ${brand.cliName} pages <create|update|disable|url|status> [options]
   ${brand.cliName} help
 
 Vault (API key — vault envelope sync):
@@ -30,6 +32,12 @@ Vault (API key — vault envelope sync):
 Repo (identity bundle — registry / RepoState; not API-key-only):
   ${brand.cliName} repo about --bundle … --prefix … --description '…'
   ${brand.cliName} repo register|unregister|rename|delete …
+
+Pages (identity bundle — website contract from tip):
+  ${brand.cliName} pages create  --bundle … --prefix … --label … [--branch main]
+  ${brand.cliName} pages update  --bundle … --prefix … --label …
+  ${brand.cliName} pages disable --bundle … --prefix … --label …
+  ${brand.cliName} pages url     --bundle … --prefix … --label …
 
 Scopes on mintable API keys (Settings → API keys):
   repos     — vault repo-key envelope (CLI vault sync)
@@ -57,7 +65,11 @@ async function main(): Promise<void> {
     await runRepoCli(rest);
     return;
   }
-  console.error(`unknown group: ${group} (expected vault | repo)`);
+  if (group === "pages") {
+    await runPagesCli(rest);
+    return;
+  }
+  console.error(`unknown group: ${group} (expected vault | repo | pages)`);
   usage();
 }
 

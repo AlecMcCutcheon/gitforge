@@ -457,8 +457,15 @@ export function tipPackKeysFromBundles(
   lastN = 3,
 ): string[] {
   let list = bundles.slice();
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // if (retention === "current") {
+  //   list = list.slice(0, Math.max(list.length, 0)); // no-op — same as "all"
+  // } else if (retention === "last_n") {
+  //   list = list.slice(0, Math.max(1, lastN));
+  // }
+  // NEW CODE - TESTING: current = newest tipped bundle only; last_n / all as labeled
   if (retention === "current") {
-    list = list.slice(0, Math.max(list.length, 0));
+    list = list.slice(0, 1);
   } else if (retention === "last_n") {
     list = list.slice(0, Math.max(1, lastN));
   }
@@ -473,6 +480,20 @@ export function tipPackKeysFromBundles(
     keys.push(key);
   }
   return keys;
+}
+
+/** Read tip retention from a live ProtectScope (or vault-remembered) member_hint. */
+export function retentionFromScope(
+  scope: ProtectScope | undefined | null,
+): TipRetention | null {
+  if (!scope?.policy?.member_hint) return null;
+  const hint = scope.policy.member_hint as {
+    retention?: { mode?: string };
+    tip_retention?: string;
+  };
+  const mode = (hint.retention?.mode ?? hint.tip_retention ?? "").trim();
+  if (mode === "current" || mode === "last_n" || mode === "all") return mode;
+  return null;
 }
 
 /** GitForge instance of MembershipSpec — freenet-git parent state field paths. */
@@ -511,18 +532,34 @@ export async function ensureRepoScopeAndSync(opts: {
   const grantId = repoGrantId(opts.prefix);
   const retention = opts.tipRetention ?? "current";
   const lastN = opts.lastN ?? 3;
+  const policy: ScopePolicy = {
+    kind: "anchor_plus_members",
+    member_hint: gitforgeTipPackMembership(retention, lastN),
+  };
   const viaShell = await requestScopeViaOverlay({
     grantId,
     anchorKey: opts.repoContractKey,
-    policy: {
-      kind: "anchor_plus_members",
-      member_hint: gitforgeTipPackMembership(retention, lastN),
-    },
+    policy,
     protectAnchor: true,
     desiredKeys: opts.tipPackKeys,
     presentation: opts.presentation,
   });
   if (!viaShell.ok) return viaShell;
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // // Already synced in request-scope when desired_keys provided; sync again if empty.
+  // if (opts.tipPackKeys.length === 0) {
+  //   return syncScope(grantId, opts.tipPackKeys);
+  // }
+  // return viaShell;
+  // NEW CODE - TESTING: request-scope short-circuits when the scope already exists
+  // and skips policy + desired_keys — so retention looked applied then reset on reload.
+  const updated = await createScope({
+    grantId,
+    anchorKey: opts.repoContractKey,
+    policy,
+    protectAnchor: true,
+  });
+  if (!updated.ok) return updated;
   try {
     const { rememberProtectScope, setProtectAppGrantedIntent } = await import(
       "./protect-prefs"
@@ -531,18 +568,11 @@ export async function ensureRepoScopeAndSync(opts: {
     rememberProtectScope({
       grant_id: grantId,
       anchor_key: opts.repoContractKey,
-      policy: {
-        kind: "anchor_plus_members",
-        member_hint: gitforgeTipPackMembership(retention, lastN),
-      },
+      policy,
       label: opts.prefix,
     });
   } catch {
     /* ignore vault/prefs */
   }
-  // Already synced in request-scope when desired_keys provided; sync again if empty.
-  if (opts.tipPackKeys.length === 0) {
-    return syncScope(grantId, opts.tipPackKeys);
-  }
-  return viaShell;
+  return syncScope(grantId, opts.tipPackKeys);
 }

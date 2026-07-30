@@ -484,7 +484,7 @@ export async function ensureBrowserTip(options: {
     walkStart = picked.commit;
   }
 
-  const mergedKey = `${options.prefix}:${options.gitRef}:${targetOid}:merged:v2`;
+  const mergedKey = `${options.prefix}:${options.gitRef}:${targetOid}:merged:v3`;
   const cachedMerged = mergedTipCache.get(mergedKey);
   if (cachedMerged) {
     try {
@@ -652,11 +652,15 @@ export async function ensureBrowserTip(options: {
     ];
     if (remaining.length === 0) return;
 
-    // Cap background fill so one fat tip history cannot monopolize Freenet.
-    const MAX_SOFT_FILL_PACKS = 4;
+    // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+    // const MAX_SOFT_FILL_PACKS = 4;
+    // const capped = remaining.slice(0, MAX_SOFT_FILL_PACKS);
+    // Nested trees (e.g. docs/images) often live only in older tipped packs
+    // beyond the first 4 after HEAD — browse threw "missing tree …".
+    // NEW CODE - TESTING: fill all remaining packs under the byte budget only
     const MAX_SOFT_FILL_BYTES = 12 * 1024 * 1024;
     const SOFT_FILL_CONC = 1;
-    const capped = remaining.slice(0, MAX_SOFT_FILL_PACKS);
+    const capped = remaining;
     let next = 0;
     let filled = 0;
     let filledBytes = 0;
@@ -690,12 +694,11 @@ export async function ensureBrowserTip(options: {
         () => softFillWorker(),
       ),
     );
-    if (filled > 0 || remaining.length > capped.length) {
+    if (filled > 0) {
       console.info(
         `[freenet-forge] soft-fill tipped packs done (+${filled}/${remaining.length}, ${packCount} packs, ${totalPackBytes} bytes` +
-          (remaining.length > capped.length ||
-          filledBytes >= MAX_SOFT_FILL_BYTES
-            ? `, capped at ${MAX_SOFT_FILL_PACKS} packs / ${MAX_SOFT_FILL_BYTES} bytes`
+          (filledBytes >= MAX_SOFT_FILL_BYTES
+            ? `, stopped at ${MAX_SOFT_FILL_BYTES} byte budget`
             : "") +
           `)`,
       );
@@ -730,28 +733,13 @@ export async function browserListTree(
 }> {
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // const entries = await listTreePath(tip.objects, tip.commit, path);
-  // NEW CODE - TESTING: wait for soft-fill — nested trees often live in parent tip packs
-  async function listWithSoftFill(): Promise<
-    Awaited<ReturnType<typeof listTreePath>>
-  > {
-    try {
-      return await listTreePath(tip.objects, tip.commit, path);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (
-        tip.softFill &&
-        /missing (blob|tree)|path not found|file not found|not in tip pack/i.test(
-          msg,
-        )
-      ) {
-        await tip.softFill;
-        return await listTreePath(tip.objects, tip.commit, path);
-      }
-      throw err;
-    }
+  // async function listWithSoftFill … try / catch / await tip.softFill / retry
+  // NEW CODE - TESTING: finish soft-fill first (same as browserShowBlob). Nested
+  // trees often live only in parent tip packs; fail-then-retry raced StrictMode.
+  if (tip.softFill) {
+    await tip.softFill;
   }
-
-  const base = await listWithSoftFill();
+  const base = await listTreePath(tip.objects, tip.commit, path);
   const entries = enrichTreeWithLastCommits(
     tip.objects,
     tip.commit,

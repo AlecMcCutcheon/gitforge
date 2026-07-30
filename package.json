@@ -22,9 +22,8 @@
     "gitforge": "npx tsx scripts/cli/gitforge.ts",
     "gitforge-vault": "npx tsx scripts/cli/gitforge.ts vault",
     "gitforge-repo": "npx tsx scripts/cli/gitforge.ts repo",
+    "gitforge-pages": "npx tsx scripts/cli/gitforge.ts pages",
     "gitatlas": "npx tsx scripts/cli/gitforge.ts",
-    "gitforge-vault": "npx tsx scripts/cli/gitforge.ts vault",
-    "gitforge-repo": "npx tsx scripts/cli/gitforge.ts repo",
     "install:cli": "npm link"
   },
   "license": "LGPL-3.0-only"

@@ -42,13 +42,27 @@ async function loadWasm(): Promise<DecodeWasm> {
     wasmPromise = (async () => {
       // Built artifact: copy from decode-wasm/pkg after `npm run build:wasm`
       const mod = await import("../wasm/freenet_forge_decode.js");
-      const wasmUrl = new URL("../wasm/freenet_forge_decode_bg.wasm", import.meta.url);
+      const wasmUrl = new URL(
+        "../wasm/freenet_forge_decode_bg.wasm",
+        import.meta.url,
+      );
       // OLD CODE - KEEP UNTIL CONFIRMED WORKING
       // await mod.default(wasmUrl);
-      // NEW CODE - TESTING: wasm-bindgen wants a single options object
-      await mod.default({ module_or_path: wasmUrl });
+      // await mod.default({ module_or_path: wasmUrl });
+      // NEW CODE - TESTING: Node CLI cannot fetch file:// — read bytes from disk
+      try {
+        await mod.default({ module_or_path: wasmUrl });
+      } catch {
+        const { readFileSync } = await import("node:fs");
+        const { fileURLToPath } = await import("node:url");
+        const bytes = readFileSync(fileURLToPath(wasmUrl));
+        await mod.default({ module_or_path: bytes });
+      }
       return mod as unknown as DecodeWasm;
-    })();
+    })().catch((err) => {
+      wasmPromise = null;
+      throw err;
+    });
   }
   return wasmPromise;
 }

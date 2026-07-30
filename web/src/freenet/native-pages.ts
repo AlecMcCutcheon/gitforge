@@ -336,13 +336,14 @@ async function putWebsiteContract(
   metadata: Uint8Array,
   archive: Uint8Array,
 ): Promise<{ contractKey: string; siteKey: ContractKey }> {
-  const wasmResp = await fetch("./website_contract.wasm");
-  if (!wasmResp.ok) {
-    throw new Error(
-      "failed to fetch website_contract.wasm — copy from freenet-core fdev resources into web/public/",
-    );
-  }
-  const wasm = new Uint8Array(await wasmResp.arrayBuffer());
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // const wasmResp = await fetch("./website_contract.wasm");
+  // …
+  // const { loadPublicWasm } = await import("./wasm-cache");
+  // const wasm = await loadPublicWasm("./website_contract.wasm");
+  // NEW CODE - TESTING: freenet-core Freenet tip first, packed public fallback
+  const { loadWebsiteContractWasm } = await import("./website-contract-wasm");
+  const wasm = await loadWebsiteContractWasm();
   const codeHash = blake3(wasm);
   const codeHashB58 = bs58.encode(codeHash);
   const params = hexToBytes(verifyingKeyHex);
