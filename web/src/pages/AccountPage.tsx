@@ -66,6 +66,7 @@ import {
   IdentityProtectSettings,
   useLocalProtectAvailable,
 } from "../components/IdentityProtectSettings";
+import { PublicGoodsSettings } from "../components/PublicGoodsSettings";
 // OLD CODE - KEEP UNTIL CONFIRMED WORKING
 // import {
 //   getBackupPrefs,
@@ -87,7 +88,8 @@ type SettingsSection =
   | "vault"
   | "export"
   | "api-keys"
-  | "local-protect";
+  | "local-protect"
+  | "public-goods";
 
 /** Stable shell — must stay outside AccountPage or inputs remount on each keystroke. */
 function AuthShell({ children }: { children: ReactNode }) {
@@ -137,6 +139,8 @@ export function AccountPage() {
           return "Downloads";
         case "api-keys":
           return "API keys";
+        case "public-goods":
+          return "Public goods";
         default:
           return "Settings";
       }
@@ -321,12 +325,44 @@ export function AccountPage() {
     }
     let cancelled = false;
     void (async () => {
+      // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+      // try {
+      //   await refresh();
+      //   if (!cancelled && !getCachedIdentity()) {
+      //     await new Promise((r) => setTimeout(r, 400));
+      //     if (!cancelled) await refresh();
+      //   }
+      // } catch {
+      //   if (!cancelled) setIdentity(getCachedIdentity());
+      // } finally {
+      //   if (!cancelled) setSessionReady(true);
+      // }
+      // NEW CODE - TESTING: bootstrap owner tools; never leave auth skeleton
+      // stuck on GetIdentity timeout when delegates are missing.
       try {
-        await refresh();
-        if (!cancelled && !getCachedIdentity()) {
-          await new Promise((r) => setTimeout(r, 400));
-          if (!cancelled) await refresh();
-        }
+        const { ensureOwnerDelegatesOnThisNode } = await import(
+          "../freenet/bootstrap-owner-tools"
+        );
+        const skeletonCap = new Promise<void>((resolve) => {
+          setTimeout(resolve, 6_000);
+        });
+        await Promise.race([
+          (async () => {
+            await ensureOwnerDelegatesOnThisNode().catch((err) => {
+              console.warn(
+                "[account] owner-tools bootstrap:",
+                err instanceof Error ? err.message : err,
+              );
+            });
+            if (cancelled) return;
+            await refresh();
+            if (!cancelled && !getCachedIdentity()) {
+              await new Promise((r) => setTimeout(r, 400));
+              if (!cancelled) await refresh();
+            }
+          })(),
+          skeletonCap,
+        ]);
       } catch {
         if (!cancelled) setIdentity(getCachedIdentity());
       } finally {
@@ -944,6 +980,7 @@ export function AccountPage() {
                 // NEW CODE - TESTING
                 ["export", "Downloads"],
                 ["api-keys", "API keys"],
+                ["public-goods", "Public goods"],
               ] as const
             ).map(([id, label]) => (
               <button
@@ -1693,6 +1730,8 @@ export function AccountPage() {
               </div>
             </>
           ) : null}
+
+          {settingsSection === "public-goods" ? <PublicGoodsSettings /> : null}
 
           {settingsSection === "api-keys" ? (
             <>

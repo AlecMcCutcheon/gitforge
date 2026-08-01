@@ -112,7 +112,7 @@ function isNoIdentityError(p: { type?: string; message?: string }): boolean {
  * Rejects early if the Freenet command WS drops (common under __sandbox=1).
  * Rejects on HostError (e.g. delegate origin rejection) instead of hanging.
  */
-function waitForDelegate<T extends { type?: string; nonce?: string; message?: string }>(
+export function waitForDelegate<T extends { type?: string; nonce?: string; message?: string }>(
   match: (p: T) => boolean,
   timeoutMs = 30_000,
 ): Promise<T> {

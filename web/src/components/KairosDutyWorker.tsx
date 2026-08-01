@@ -3,8 +3,9 @@
  * Subscribe / pulse / observe). Must never block SPA load — delayed start,
  * all errors swallowed to console.
  *
- * Witness is anchored to GitForge identity when signed in (deterministic
- * seed), so reloads do not mint Sybil pulse keys.
+ * The worker is retained for compatibility with older imports. New mounts
+ * use PublicGoodsDutyWorker, which addresses the existing Kairos delegate
+ * directly and never derives a witness from the GitForge identity.
  */
 import { useEffect } from "react";
 import { onAuthSessionChange, getCachedIdentity } from "../freenet/auth-api";
@@ -72,7 +73,7 @@ export function KairosDutyWorker() {
 
     scheduleStart(START_DELAY_MS);
 
-    // Re-bind when sign-in lands so we upgrade from guest random → forge-derived.
+    // Re-bind when sign-in lands only to refresh the non-creating watcher.
     const unsubAuth = onAuthSessionChange(() => {
       if (cancelled) return;
       if (getCachedIdentity()) scheduleStart(1_500);

@@ -7,7 +7,7 @@ import { BrandLogo } from "./components/BrandLogo";
 import { PeopleSiteNav, usePeopleRoute } from "./components/PeopleSiteNav";
 import { RepoSiteNav, useRepoRoute } from "./components/RepoSiteNav";
 import { ProtectWorker } from "./components/ProtectWorker";
-import { KairosDutyWorker } from "./components/KairosDutyWorker";
+import { PublicGoodsDutyWorker } from "./components/PublicGoodsDutyWorker";
 import { AccountPage } from "./pages/AccountPage";
 import { InboxPage } from "./pages/InboxPage";
 import { ImportRepoPage } from "./pages/ImportRepoPage";
@@ -65,8 +65,8 @@ export function App() {
   return (
     <div className={`shell${isRawRoute ? " shell--raw" : ""}`}>
       {websiteMode ? <ProtectWorker /> : null}
-      {/* NEW CODE - TESTING: public-goods Kairos duty — delayed, non-blocking */}
-      {websiteMode ? <KairosDutyWorker /> : null}
+      {/* Delayed, non-blocking contribution through existing service-owned delegates. */}
+      {websiteMode ? <PublicGoodsDutyWorker /> : null}
       {!isRawRoute ? (
       <header className="site-header">
         <div className="topnav">

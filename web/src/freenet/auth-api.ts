@@ -384,6 +384,7 @@ async function buildSignedVaultState(input: {
     settingsPlain = {
       ...settingsPlain,
       repo_backup: getBackupPrefs(),
+      public_goods: (await import("./public-goods-consent")).getPublicGoodsAuthorizations(),
     };
   } catch {
     /* ignore */
@@ -839,6 +840,7 @@ export async function pushDelegateReposToVault(): Promise<{
     v: typeof secrets.settings.v === "number" ? secrets.settings.v : 1,
     repo_backup: getBackupPrefs(),
     local_protect: getProtectVaultIntent(),
+    public_goods: (await import("./public-goods-consent")).getPublicGoodsAuthorizations(),
   };
   const next = await buildOwnerEnvelopesUpdate({
     state,
@@ -879,6 +881,43 @@ export async function pushBackupPrefsToVault(
 /**
  * Seal Protect prefs + remembered scopes into ForgeVault `settings` (best-effort).
  */
+export async function pushPublicGoodsAuthorizationsToVault(
+  authorizations: SettingsEnvelopePlaintext["public_goods"],
+): Promise<boolean> {
+  const vault_id = getSessionVaultId() || (await ensureSessionVaultId().catch(() => null));
+  if (!vault_id) return false;
+  const state = await fetchForgeVault(vault_id);
+  if (!state?.identity_dek_wrap?.blob_b64) return false;
+  const secrets = await loadVaultSecretsViaIdentityWrap(state);
+  const settingsPlain: SettingsEnvelopePlaintext = {
+    ...secrets.settings,
+    v: typeof secrets.settings.v === "number" ? secrets.settings.v : 1,
+    public_goods: authorizations ?? {},
+  };
+  const next = await buildOwnerEnvelopesUpdate({
+    state,
+    settingsPlain,
+    deks: secrets.deks,
+  });
+  await putOrUpdateForgeVault(vault_id, next);
+  return true;
+}
+
+export async function pullPublicGoodsAuthorizationsFromVault(): Promise<
+  SettingsEnvelopePlaintext["public_goods"] | null
+> {
+  const vault_id = getSessionVaultId() || (await ensureSessionVaultId().catch(() => null));
+  if (!vault_id) return null;
+  const state = await fetchForgeVault(vault_id);
+  if (!state?.identity_dek_wrap?.blob_b64) return null;
+  const secrets = await loadVaultSecretsViaIdentityWrap(state);
+  const records = secrets.settings?.public_goods;
+  return records && typeof records === "object" ? records : null;
+}
+
+/**
+ * Seal Protect prefs + remembered scopes into ForgeVault `settings` (best-effort).
+ */
 export async function pushProtectIntentToVault(
   intent: SettingsEnvelopePlaintext["local_protect"],
 ): Promise<void> {
@@ -891,6 +930,7 @@ export async function pushProtectIntentToVault(
     ...secrets.settings,
     v: typeof secrets.settings.v === "number" ? secrets.settings.v : 1,
     local_protect: intent ?? undefined,
+    public_goods: secrets.settings.public_goods,
   };
   const next = await buildOwnerEnvelopesUpdate({
     state,
@@ -935,6 +975,8 @@ export async function pullProtectIntentFromVault(): Promise<
 export async function pullVaultReposToDelegate(input?: {
   /** When true, overwrite local secrets that differ from vault. */
   overwriteMismatched?: boolean;
+  /** Only explicit account restore should rehydrate consent from the vault. */
+  restorePublicGoods?: boolean;
 }): Promise<{ imported: number; updated: number; skipped: number }> {
   const overwriteMismatched = input?.overwriteMismatched ?? false;
   const vault_id = getSessionVaultId() || (await ensureSessionVaultId());
@@ -1021,6 +1063,24 @@ export async function pullVaultReposToDelegate(input?: {
       "[vault] backup prefs pull skipped:",
       err instanceof Error ? err.message : err,
     );
+  }
+
+  // Public-goods authorization is restored only during an explicit account
+  // restore. Routine account-health/key sync must not overwrite a newer local
+  // consent choice with an older vault snapshot.
+  if (input?.restorePublicGoods) {
+    try {
+      const { hydratePublicGoodsFromVault } = await import("./public-goods-consent");
+      await hydratePublicGoodsFromVault(
+        secrets.settings?.public_goods,
+        state.identity_fingerprint,
+      );
+    } catch (err) {
+      console.warn(
+        "[vault] public-goods authorization restore skipped:",
+        err instanceof Error ? err.message : err,
+      );
+    }
   }
 
   // NEW CODE - TESTING: Protect intent — conflict-aware hydrate (no stomp on diverge)
@@ -1306,7 +1366,10 @@ export async function ensureAccountContracts(input: {
   if (input.syncFromVault === "pull") {
     try {
       input.onStatus?.("Pulling repo keys from vault…");
-      await pullVaultReposToDelegate({ overwriteMismatched: true });
+      await pullVaultReposToDelegate({
+        overwriteMismatched: true,
+        restorePublicGoods: true,
+      });
     } catch (e) {
       console.warn("[auth] vault→delegate pull skipped:", e);
     }
@@ -1543,7 +1606,7 @@ export async function importFreenetGitIdentityBundle(input: {
     vault_id,
     username,
     email,
-    syncFromVault: "none",
+    syncFromVault: "pull",
     onStatus: input.onStatus,
   });
   try {

@@ -120,6 +120,17 @@ export interface PagesEnvelopePlaintext {
   pages: Record<string, { secret_hex: string; label: string }>;
 }
 
+/** A service-owned identity approval recorded by the signed-in GitForge identity. */
+export interface PublicGoodAuthorization {
+  service: "kairos" | "tyche";
+  gitforge_identity_fingerprint: string;
+  service_node_id: string;
+  service_label: string;
+  initialized_at: number;
+  consented_at: number | null;
+  background_enabled: boolean;
+}
+
 /** Private prefs / KV sealed in ForgeVault `settings` envelope. */
 export interface SettingsEnvelopePlaintext {
   v: number;
@@ -144,6 +155,8 @@ export interface SettingsEnvelopePlaintext {
       label?: string;
     }>;
   };
+  /** Explicit service-owned identity approvals and contribution consent. */
+  public_goods?: Partial<Record<"kairos" | "tyche", PublicGoodAuthorization>>;
   [key: string]: unknown;
 }
 

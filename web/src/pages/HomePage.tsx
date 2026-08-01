@@ -50,6 +50,13 @@ export function HomePage() {
     // Blocked the whole page until demos + cache + registry all finished.
     // NEW CODE - TESTING: paint embedded demos immediately; registry fills in.
 
+    // NEW CODE - TESTING: cold peers — RegisterDelegate + soft-Put registry/stars
+    if (websiteMode) {
+      void import("../freenet/bootstrap-owner-tools").then((m) => {
+        m.softBootstrapOwnerTools();
+      });
+    }
+
     if (!websiteMode) {
       void api
         .demos()

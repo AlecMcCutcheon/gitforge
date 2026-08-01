@@ -50,6 +50,9 @@ let activeApi: FreenetWsApi | null = null;
 type DelegateListener = (payloads: object[]) => void;
 const delegateListeners = new Set<DelegateListener>();
 
+type DelegateRawListener = (response: DelegateResponse) => void;
+const delegateRawListeners = new Set<DelegateRawListener>();
+
 /** Fired when the command WS drops so pending delegate waits can fail fast. */
 type ConnDropListener = (err: Error) => void;
 const connDropListeners = new Set<ConnDropListener>();
@@ -70,6 +73,16 @@ export function onDelegatePayloads(listener: DelegateListener): () => void {
   delegateListeners.add(listener);
   return () => {
     delegateListeners.delete(listener);
+  };
+}
+
+/** Raw DelegateResponse (incl. empty-values RegisterDelegate acks). */
+export function onDelegateResponseRaw(
+  listener: DelegateRawListener,
+): () => void {
+  delegateRawListeners.add(listener);
+  return () => {
+    delegateRawListeners.delete(listener);
   };
 }
 
@@ -195,6 +208,13 @@ async function openFreenetConn(): Promise<Conn> {
     ...noopHandler(),
     onOpen: () => resolveReady(),
     onDelegateResponse: (r: DelegateResponse) => {
+      for (const listener of delegateRawListeners) {
+        try {
+          listener(r);
+        } catch (e) {
+          console.warn("[freenet-forge] delegate raw listener error:", e);
+        }
+      }
       const payloads = parseDelegateResponse(r);
       if (payloads.length === 0) return;
       for (const listener of delegateListeners) {
