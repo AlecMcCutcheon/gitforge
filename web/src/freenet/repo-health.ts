@@ -62,6 +62,8 @@ export async function probeRepoHealth(
     packsLocalOnly?: boolean;
     /** Cap hub soft-GETs so soft-fill cannot starve the sidebar forever. */
     hubTimeoutMs?: number;
+    /** Fired as soon as tip-pack probe finishes (before hub soft-GETs). */
+    onPacksReady?: (packs: PackHealthProbeResult) => void;
   },
 ): Promise<RepoHealthProbeResult> {
   const expectRegistered = opts?.expectRegistered === true;
@@ -71,7 +73,9 @@ export async function probeRepoHealth(
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // const packs = await probePackHealth(tippedBundles);
   // then serial registry + ForgeRepoMeta soft-GETs (missing meta ≈ full soft timeout)
-  // NEW CODE - TESTING: packs ‖ hub soft-checks; skip meta GET when unregistered
+  // Promise.all([packs, hub]) — packs at median 0ms still waited full hubTimeout
+  // before the sidebar could paint Packs reachable.
+  // NEW CODE - TESTING: packs first (+ onPacksReady); hub in parallel after kickoff
 
   const hubProbe = async (): Promise<{
     registry: ContractReach;
@@ -136,15 +140,23 @@ export async function probeRepoHealth(
     repoMeta: expectRegistered ? "missing" : "skipped",
   });
 
-  const [packs, hub] = await Promise.all([
-    probePackHealth(tippedBundles, { localOnly: packsLocalOnly }),
-    Promise.race([
-      hubProbe(),
-      new Promise<ReturnType<typeof hubFallback>>((resolve) =>
-        setTimeout(() => resolve(hubFallback()), hubTimeoutMs),
-      ),
-    ]),
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // const [packs, hub] = await Promise.all([
+  //   probePackHealth(tippedBundles, { localOnly: packsLocalOnly }),
+  //   Promise.race([hubProbe(), timeout hubFallback]),
+  // ]);
+  // NEW CODE - TESTING: start hub immediately; surface packs without waiting on it
+  const hubPromise = Promise.race([
+    hubProbe(),
+    new Promise<ReturnType<typeof hubFallback>>((resolve) =>
+      setTimeout(() => resolve(hubFallback()), hubTimeoutMs),
+    ),
   ]);
+  const packs = await probePackHealth(tippedBundles, {
+    localOnly: packsLocalOnly,
+  });
+  opts?.onPacksReady?.(packs);
+  const hub = await hubPromise;
   const { registry, listed, repoMeta } = hub;
 
   let rescueNeed = packs.rescueNeed;

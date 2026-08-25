@@ -522,6 +522,171 @@ const browsing: DocsSection = {
         shields.io badges are re-rendered locally, because the SPA runs inside
         Freenet's iframe CSP.
       </Note>
+
+      <Tip>
+        Digging into failures like <Code>commit … not in tip pack</Code>? See{" "}
+        <Link to="/docs/tip-packs">Tip packs</Link> for how packs work, why
+        Rescue is not enough, and the snapshot republish playbook.
+      </Tip>
+    </>
+  ),
+};
+
+const tipPacks: DocsSection = {
+  slug: "tip-packs",
+  group: "Features",
+  nav: "Tip packs",
+  title: "Tip packs",
+  blurb:
+    "How Freenet tip packs work, why “not in tip pack” happens, and how to fix it.",
+  body: (
+    <>
+      <h2>What a tip pack is</h2>
+      <p>
+        A Freenet git repo is two layers: a signed <strong>RepoState</strong>{" "}
+        contract (refs, tipped-bundle index, mirror mode) and one or more{" "}
+        <strong>tip pack</strong> contracts (content-addressed git pack bytes —
+        single or chunked). GitForge never full-clones for browse: it GETs
+        RepoState, loads tip packs over your node, soft-fills older tipped
+        packs into memory, and walks trees in wasm.
+      </p>
+      <Table
+        head={["Piece", "Job"]}
+        rows={[
+          [
+            "Repo contract",
+            "Refs (e.g. main → commit hex), tipped-bundle list, metadata",
+          ],
+          [
+            "Tip pack",
+            "Git objects for a tip commit — whatever that push actually included",
+          ],
+          [
+            "Soft-fill",
+            "After HEAD tip loads, merge other tipped packs so nested trees / history appear",
+          ],
+          [
+            "Pin / Protect",
+            "Keep the live tip-graph packs warm on your node (not “newest by age” only)",
+          ],
+        ]}
+      />
+
+      <h2>History vs snapshot</h2>
+      <p>
+        Push mirror mode is set with <Code>FREENET_GIT_MIRROR_MODE</Code>:
+      </p>
+      <ul>
+        <li>
+          <strong>history</strong> — incremental tips. A new tip may assume
+          older tipped packs still hold ancestor objects. Soft-fill and pin
+          “current” keep the whole live tip closure.
+        </li>
+        <li>
+          <strong>snapshot</strong> — self-contained tip pack (full tree
+          closure). Browse can work from one pack; older tipped bundles are
+          often dead weight.
+        </li>
+      </ul>
+      <Warn>
+        An “empty” republish tip of a few hundred bytes is almost always a thin
+        delta without the tree. That looks like a successful push and still
+        leaves <Code>missing tree …</Code> on Freenet.
+      </Warn>
+
+      <h2>Errors you will see</h2>
+      <Table
+        head={["Message", "Meaning"]}
+        rows={[
+          [
+            <Code>commit … not in tip pack</Code>,
+            "RepoState ref points at a commit whose objects are not in any loaded tip pack",
+          ],
+          [
+            <Code>missing tree …</Code>,
+            "Commit may be present but the root/subdir tree lives only in a pack that never published or never soft-filled",
+          ],
+          [
+            "Packs reachable N/N · Rescue OK",
+            "Contracts soft-GET fine — does not prove the object graph is complete",
+          ],
+        ]}
+      />
+
+      <h2>Why Rescue often “does nothing”</h2>
+      <p>
+        <strong>Rescue re-PUTs packs that already exist</strong> (IDB, backup,
+        network, or <Code>freenet-git rescue --from</Code> reconstruction of{" "}
+        <em>listed</em> bundle IDs). It cannot invent a tip that was never
+        published. Classic trap:
+      </p>
+      <ol>
+        <li>Freenet <Code>main</Code> still points at commit <Code>b676cee…</Code></li>
+        <li>Local / GitHub already moved on, or that tip’s pack was thin / incomplete</li>
+        <li>Rescue reports rescued bundles / health shows Low need</li>
+        <li>Browse still throws <Code>not in tip pack</Code></li>
+      </ol>
+      <Note>
+        Repo health “Packs reachable” answers “can I fetch these pack
+        contracts?” — not “does the tip contain every object needed to walk the
+        tree?”
+      </Note>
+
+      <h2>Fix playbook (owner)</h2>
+      <p>
+        On a machine with the identity bundle, passphrase, Freenet node, and a
+        local clone that has the missing oid (<Code>git cat-file -t …</Code>):
+      </p>
+      <Pre title="1. Confirm mismatch">
+        {`git ls-remote freenet HEAD
+git rev-parse HEAD
+git cat-file -t <missing-oid>`}
+      </Pre>
+      <Pre title="2. Snapshot republish (reliable browse restore)">
+        {`export FREENET_GIT_IDENTITY=…   # path to identity bundle
+export FREENET_GIT_PASSPHRASE=…  # quote if it has spaces
+export FREENET_GIT_MIRROR_MODE=snapshot
+
+TREE=$(git rev-parse 'HEAD^{tree}')
+ORPHAN=$(git commit-tree "$TREE" -m "chore: snapshot republish tip onto Freenet")
+
+git push --force freenet "$ORPHAN:refs/heads/main"
+freenet-git rescue --only-current-tips --from . 'freenet::<prefix>/<label>'`}
+      </Pre>
+      <ul>
+        <li>
+          Local / GitHub <Code>main</Code> stay on real history; only the
+          Freenet tip becomes the orphan (same tree → same files).
+        </li>
+        <li>
+          Expect a <strong>large</strong> pack (hundreds of KiB+), not ~200 B.
+        </li>
+        <li>Hard-refresh GitForge after rescue.</li>
+      </ul>
+      <Pre title="What not to rely on alone">
+        {`# Only re-PUTs known tipped bundles
+freenet-git rescue --rescue-all 'freenet::<prefix>/<label>'
+
+# Empty history tip is often thin — tree never lands
+git commit --allow-empty -m "republish"
+git push freenet main`}
+      </Pre>
+
+      <h2>After it works</h2>
+      <p>
+        Later pushes with <Code>FREENET_GIT_MIRROR_MODE=history</Code> can grow
+        a tipped soft-fill chain again. Pin{" "}
+        <strong>Current tip packs (live tip graph)</strong> keeps every pack
+        still needed for soft-fill — not only the chronologically newest tip.
+        Bare CLI <Code>git push freenet</Code> does not auto-pin; leave the
+        repo open in GitForge (ProtectWorker) or hit Sync after CLI pushes.
+      </p>
+
+      <Tip>
+        Longer operator notes also live in the repo at{" "}
+        <Code>docs/17-tip-packs.md</Code> (WS/chunk transport:{" "}
+        <Code>docs/15-freenet-git-ws-hygiene.md</Code>).
+      </Tip>
     </>
   ),
 };
@@ -726,7 +891,9 @@ const protect: DocsSection = {
       <Warn>
         Protect can't resurrect bytes that were already evicted before you
         pinned them. Pin early — especially anything you've pushed but not
-        mirrored elsewhere.
+        mirrored elsewhere. If browse says <Code>not in tip pack</Code> but
+        Rescue looks fine, see <Link to="/docs/tip-packs">Tip packs</Link> —
+        you likely need a snapshot republish, not another rescue.
       </Warn>
     </>
   ),
@@ -1030,6 +1197,7 @@ export const DOCS_SECTIONS: DocsSection[] = [
   identity,
   repositories,
   browsing,
+  tipPacks,
   discover,
   inbox,
   pages,

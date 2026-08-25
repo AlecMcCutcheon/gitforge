@@ -63,11 +63,15 @@ export function LanguagesSidebarBlock({
     let cancelled = false;
     const ac = new AbortController();
     setStats(null);
-    setLoading(false);
+    // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+    // setLoading(false);
+    // Skeleton only after idle — first paint showed nothing until path-pass,
+    // and a soft-fill `missing tree` throw left the block permanently null.
+    // NEW CODE - TESTING: show loading skeleton immediately while tip soft-fills
+    setLoading(true);
 
     const cancelIdle = whenIdle(() => {
       if (cancelled) return;
-      setLoading(true);
       void api
         .languages(prefix, label, gitRef, {
           signal: ac.signal,
@@ -111,11 +115,16 @@ export function LanguagesSidebarBlock({
             }
           })();
         })
-        .catch(() => {
-          if (!cancelled) {
-            setStats(null);
-            setLoading(false);
-          }
+        .catch((e) => {
+          if (cancelled) return;
+          // Abort from effect cleanup is expected; keep quiet.
+          if (e instanceof DOMException && e.name === "AbortError") return;
+          console.warn(
+            "[freenet-forge] language stats:",
+            e instanceof Error ? e.message : e,
+          );
+          setStats(null);
+          setLoading(false);
         });
     });
 

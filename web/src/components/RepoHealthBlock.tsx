@@ -8,6 +8,7 @@ import { summarizeRepoState } from "../tip-browse/decode-wasm";
 import {
   passiveFromSummary,
   type PackHealthPassive,
+  type PackHealthProbeResult,
   type RescueNeed,
 } from "../freenet/pack-health";
 import {
@@ -180,56 +181,73 @@ export function RepoHealthBlock({
         // await softFill + network soft-GETs + nativeEnsureTip("HEAD") —
         // duplicated tip load (HEAD vs main), starved low-priority hub GETs
         // behind soft-fill high GETs → Packs reachable hung forever / ws 1006.
-        // NEW CODE - TESTING: instant local IDB probe; hub soft-GETs capped;
-        // auto-rescue only after a full network refine.
+        // Then always slept 3s before refine — even when IDB already 20/20 —
+        // so health lagged languages/license after tip soft-fill finished.
+        // NEW CODE - TESTING: paint packs via onPacksReady (don't wait hub);
+        // skip the 3s settle when local packs are already complete.
+        const paintPacksEarly = (packs: PackHealthProbeResult) => {
+          if (cancelled) return;
+          const complete = packs.total > 0 && packs.reachable >= packs.total;
+          setProbe({
+            packs,
+            registry: "skipped",
+            listed: false,
+            repoMeta: "skipped",
+            rescueNeed: packs.rescueNeed,
+            message: packs.message,
+            checkedAt: packs.checkedAt,
+          });
+          if (complete) setBusy(null);
+        };
+
         const local = await probeRepoHealth(prefix, bundles, {
           expectRegistered: registered,
           packsLocalOnly: true,
-          hubTimeoutMs: 2_500,
+          hubTimeoutMs: 1_200,
+          onPacksReady: paintPacksEarly,
         });
         if (cancelled) return;
-        // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-        // setProbe(local);
-        // setBusy(null);
-        // — local-only miss (soft-fill still running) painted Rescue need High,
-        // then network refine dropped it to Low a few seconds later.
-        // NEW CODE - TESTING: paint early only when local cache is complete;
-        // otherwise keep busy="probe" (skeletons) until network refine.
+        setProbe(local);
         const localPacksComplete =
           local.packs.total > 0 &&
           local.packs.reachable >= local.packs.total;
         if (localPacksComplete) {
-          setProbe(local);
           setBusy(null);
         }
 
-        // Background refine after soft-fill has a chance to land more packs.
-        // Do NOT nativeEnsureTip("HEAD") — that starts a second tip load vs main.
         void (async () => {
-          await new Promise<void>((r) => setTimeout(r, 3_000));
+          // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+          // await new Promise<void>((r) => setTimeout(r, 3_000));
+          // NEW CODE - TESTING: only brief settle when local cache still incomplete
+          if (!localPacksComplete) {
+            await new Promise<void>((r) => setTimeout(r, 400));
+          }
           if (cancelled) return;
           try {
-            const againLocal = await probeRepoHealth(prefix, bundles, {
-              expectRegistered: registered,
-              packsLocalOnly: true,
-              hubTimeoutMs: 2_500,
-            });
-            if (cancelled) return;
-            // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-            // setProbe(againLocal);
-            // NEW CODE - TESTING: only surface mid-refine local if complete
-            if (
-              againLocal.packs.total > 0 &&
-              againLocal.packs.reachable >= againLocal.packs.total
-            ) {
-              setProbe(againLocal);
-              setBusy(null);
+            if (!localPacksComplete) {
+              const againLocal = await probeRepoHealth(prefix, bundles, {
+                expectRegistered: registered,
+                packsLocalOnly: true,
+                hubTimeoutMs: 1_200,
+                onPacksReady: paintPacksEarly,
+              });
+              if (cancelled) return;
+              if (
+                againLocal.packs.total > 0 &&
+                againLocal.packs.reachable >= againLocal.packs.total
+              ) {
+                setProbe(againLocal);
+                setBusy(null);
+              }
             }
 
+            // Skip network pack re-probe when local already complete — only
+            // refresh hub listing/meta (still useful, cheap when registry warm).
             const full = await probeRepoHealth(prefix, bundles, {
               expectRegistered: registered,
-              packsLocalOnly: false,
-              hubTimeoutMs: 6_000,
+              packsLocalOnly: localPacksComplete,
+              hubTimeoutMs: localPacksComplete ? 2_500 : 6_000,
+              onPacksReady: localPacksComplete ? undefined : paintPacksEarly,
             });
             if (cancelled) return;
             setProbe(full);
@@ -362,7 +380,9 @@ export function RepoHealthBlock({
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // const probeSettled = busy !== "probe";
   // — before useEffect set busy="probe", busy was null → probeSettled true → "—"
-  // NEW CODE - TESTING: pending until we have a probe (or nothing to probe)
+  // Single probeSettled gated Packs reachable behind hub soft-GETs (up to 2.5s)
+  // even when local pack probe already returned median 0ms.
+  // NEW CODE - TESTING: packs vs hub settle independently
   const hasBundles = passive.tippedBundles.length > 0;
   const probePending =
     busy === "probe" ||
@@ -372,14 +392,22 @@ export function RepoHealthBlock({
       probe == null &&
       !error &&
       busy !== "rescue");
-  const probeSettled = !probePending;
+  const packsReady =
+    probe != null &&
+    packs != null &&
+    packs.total > 0 &&
+    (packs.reachable >= packs.total || !probePending);
+  const hubReady =
+    probe != null &&
+    !probePending &&
+    (!registered || probe.registry !== "skipped");
 
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // const rescueText = !probeSettled ? null : busy === "rescue" ? …
   //   : probe ? rescueNeedLabel(probe.rescueNeed) : "—";
   // — local-only "unknown"/incomplete grades still flashed High via early setProbe.
   // NEW CODE - TESTING: unknown = still checking (skeleton), not a real urgency.
-  const rescueText = !probeSettled
+  const rescueText = !packsReady
     ? null
     : busy === "rescue"
       ? "Rescuing…"
@@ -391,8 +419,8 @@ export function RepoHealthBlock({
 
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // Show reachable counts as soon as probe exists (even while busy=probe).
-  // NEW CODE - TESTING: wait until settled so soft-fill misses don't flash 0/N.
-  const reachableText = !probeSettled
+  // NEW CODE - TESTING: show packs as soon as pack probe paints (hub may lag).
+  const reachableText = !packsReady
     ? null
     : packs && packs.total > 0
       ? `${packs.reachable}/${packs.total}${
@@ -436,7 +464,7 @@ export function RepoHealthBlock({
           <li>
             <span className="muted">Discover listing</span>
             <span>
-              <ValueOrSkel ready={probeSettled} skelWidth="5rem">
+              <ValueOrSkel ready={hubReady} skelWidth="5rem">
                 {probe
                   ? reachLabel(probe.registry, probe.listed, "registry")
                   : "—"}
@@ -447,7 +475,7 @@ export function RepoHealthBlock({
         <li>
           <span className="muted">Repo settings</span>
           <span>
-            <ValueOrSkel ready={probeSettled} skelWidth="4rem">
+            <ValueOrSkel ready={hubReady} skelWidth="4rem">
               {probe
                 ? probe.repoMeta === "missing" && !registered && !probe.listed
                   ? "Not created"

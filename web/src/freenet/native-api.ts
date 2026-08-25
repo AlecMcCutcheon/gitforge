@@ -248,7 +248,15 @@ export async function nativeLanguageStats(
   // and main-thread thrash attaching every blob body.
   // if (tip.softFill) await tip.softFill;
   // …then single full pass with content…
-  // NEW CODE - TESTING: path-only paint ASAP; refine after soft-fill settles
+  // Path-only paint ASAP; refine after soft-fill settles — but path pass ran
+  // BEFORE soft-fill, so listAllBlobsWithSizes threw `missing tree` on multi-pack
+  // tips (trees only in parent packs). Widget catch → null; settings→back worked
+  // because soft-fill had finished by then.
+  // NEW CODE - TESTING: await soft-fill first (same as browserListTree / blob)
+  if (tip.softFill) await tip.softFill;
+  if (opts?.signal?.aborted) {
+    return { totalBytes: 0, languages: [], skipped: 0 };
+  }
 
   const CONTENT_CAP = 64 * 1024;
 
@@ -344,7 +352,13 @@ export async function nativeLanguageStats(
     `[freenet-forge] language stats path-pass ${pathPass.blobCount} blobs ${(performance.now() - t0).toFixed(0)}ms`,
   );
 
-  if (tip.softFill) await tip.softFill;
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // if (tip.softFill) await tip.softFill;
+  // if (opts?.signal?.aborted) {
+  //   return pathPass.result;
+  // }
+  // NEW CODE - TESTING: soft-fill already awaited above
+
   if (opts?.signal?.aborted) {
     return pathPass.result;
   }

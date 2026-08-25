@@ -1259,14 +1259,33 @@ export function AccountPage() {
                       Upload
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/*,.gif"
                         hidden
                         disabled={busy || vaultEnsureBusy}
                         onChange={(e) => {
                           if (busy || vaultEnsureBusy) return;
                           const file = e.target.files?.[0];
+                          e.target.value = "";
                           if (!file) return;
-                          void resizeImageToDataUrl(file).then(setAvatar);
+                          // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+                          // void resizeImageToDataUrl(file).then(setAvatar);
+                          // NEW CODE - TESTING: surface GIF size / type errors
+                          void resizeImageToDataUrl(file)
+                            .then((url) => {
+                              setAvatar(url);
+                              setNote(
+                                url.startsWith("data:image/gif")
+                                  ? "GIF selected — save profile to keep the animation."
+                                  : null,
+                              );
+                            })
+                            .catch((err: unknown) => {
+                              setNote(
+                                err instanceof Error
+                                  ? err.message
+                                  : String(err),
+                              );
+                            });
                         }}
                       />
                     </label>

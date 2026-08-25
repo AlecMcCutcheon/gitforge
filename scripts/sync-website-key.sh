@@ -7,7 +7,12 @@ OUT="$ROOT/web/src/freenet/website-constants.ts"
 
 KEY=""
 if command -v fdev >/dev/null 2>&1; then
-  KEY="$(fdev website list 2>/dev/null | awk -v n="$KEY_NAME" '$1==n {print $2; exit}')"
+  # OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  # KEY="$(fdev website list 2>/dev/null | awk -v n="$KEY_NAME" '$1==n {print $2; exit}')"
+  # NEW CODE - TESTING: awk early-exit SIGPIPEs fdev → pipefail 101 aborted publish
+  KEY="$(
+    fdev website list 2>/dev/null | awk -v n="$KEY_NAME" '$1==n {print $2; exit}' || true
+  )"
 fi
 if [[ -z "$KEY" ]]; then
   echo "warn: could not resolve website key for ${KEY_NAME}; leaving constants unchanged" >&2
