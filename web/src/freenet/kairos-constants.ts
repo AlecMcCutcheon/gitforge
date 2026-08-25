@@ -1,8 +1,8 @@
 /* Kairos time-oracle constants (public goods soft-host). Keep in sync with
  * kairos/site/src/kairos-constants.js after kairos `scripts/build.sh`. */
-export const KAIROS_PARAMS_UTF8 = "kairos-time-v2";
+export const KAIROS_PARAMS_UTF8 = "kairos-time-v3";
 export const KAIROS_WASM_HASH_B58 =
-  "9mW5W6i2873t1Zr4EPtVBHi7kjjTFhyeUfyC5CWNEHP";
+  "3YJUxCMtRgmWTDYT8PKAw2sgpZqEgMTf5SGiExGkL9tf";
 
 /** Match kairos contract MIN_AGE_MS. */
 export const KAIROS_MIN_AGE_MS = 3_600_000;
