@@ -39,7 +39,12 @@ export async function resolvePersonDisplayName(
 
   const work = (async () => {
     try {
-      const profile = await fetchForgeProfile(fingerprint).catch(() => null);
+      // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+      // fetchForgeProfile(fingerprint) — probed legacy hashes × N Discover cards
+      // NEW CODE - TESTING: current WASM only for display names (cheap soft GET)
+      const profile = await fetchForgeProfile(fingerprint, {
+        currentOnly: true,
+      }).catch(() => null);
       const username = profile?.username?.trim() ?? "";
       const name =
         username && !isFingerprintId(username)
@@ -65,13 +70,20 @@ export async function prefetchPersonDisplayNames(
   fingerprints: string[],
 ): Promise<void> {
   const unique = [...new Set(fingerprints.map(normFp).filter(Boolean))];
-  await Promise.all(
-    unique.map((fp) =>
-      resolvePersonDisplayName(
-        fingerprints.find((f) => normFp(f) === fp) ?? fp,
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // Promise.all(unique.map(...)) — stampeded soft GETs, clogged Discover→repo
+  // NEW CODE - TESTING: small concurrency so tip/refs can preempt cleanly
+  const CONCURRENCY = 3;
+  for (let i = 0; i < unique.length; i += CONCURRENCY) {
+    const batch = unique.slice(i, i + CONCURRENCY);
+    await Promise.all(
+      batch.map((fp) =>
+        resolvePersonDisplayName(
+          fingerprints.find((f) => normFp(f) === fp) ?? fp,
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 /** Drop cached name (e.g. after self profile save). */

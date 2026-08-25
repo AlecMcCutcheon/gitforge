@@ -265,13 +265,22 @@ function isMissingProfileError(err: unknown): boolean {
  */
 export async function fetchForgeProfile(
   fingerprint: string,
-  opts?: { reliable?: boolean },
+  opts?: { reliable?: boolean; /** Soft path: only current WASM hash (Discover). */ currentOnly?: boolean },
 ): Promise<ForgeProfileStateJson | null> {
   if (!forgeProfileReady() || !fingerprint) {
     return null;
   }
   const hashes = profileWasmHashesToProbe();
   if (hashes.length === 0) return null;
+
+  // Discover / PersonName — one soft GET, no legacy fan-out on the shared WS.
+  if (!opts?.reliable && opts?.currentOnly) {
+    try {
+      return await fetchForgeProfileAtHash(fingerprint, hashes[0]!, opts);
+    } catch {
+      return null;
+    }
+  }
 
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // Sequential probe of every hash — soft miss × 3 ≈ 12s even when current hit

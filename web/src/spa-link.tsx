@@ -4,6 +4,10 @@
  * Without `data-freenet-no-intercept`, every <a> click is turned into an
  * iframe.src reload (full SPA remount). That made GitForge→Discover feel
  * broken (cold identity probe) and repo clicks feel endless.
+ *
+ * Exception: Discover → repo must remount (see ColdRepoLink). Soft SPA nav
+ * keeps Discover's in-flight soft GETs on the shared WS and sticks on
+ * "Reading refs"; pasting the repo URL / reload is fast.
  */
 import {
   Link as RrLink,
@@ -12,8 +16,12 @@ import {
   type NavLinkProps,
   useHref,
 } from "react-router-dom";
-import type { MouseEvent } from "react";
-import { postShellHistory } from "./freenet/shell-history-sync";
+import type { MouseEvent, ReactNode } from "react";
+import {
+  freenetAbsoluteAppHref,
+  postShellHistory,
+} from "./freenet/shell-history-sync";
+import { isBrowserNativeMode } from "./tip-browse";
 
 // Must be a truthy string — interceptor checks `dataset.freenetNoIntercept`
 // with a truthy test, so `""` would still remount the iframe.
@@ -88,4 +96,41 @@ export function NavLink(props: NavLinkProps) {
       onClick={(e) => syncShellOnClick(href, replace, onClick, e)}
     />
   );
+}
+
+/**
+ * Discover → repo: allow Freenet to remount the iframe at this path (same as
+ * pasting the URL). Do not use for in-repo links (those stay on soft Link).
+ */
+export function ColdRepoLink(props: {
+  to: string;
+  className?: string;
+  children: ReactNode;
+}): ReactNode {
+  const { to, className, children } = props;
+  // Vite / non-website: soft SPA is fine (no Freenet iframe WS hang).
+  if (!isBrowserNativeMode()) {
+    return (
+      <Link to={to} className={className}>
+        {children}
+      </Link>
+    );
+  }
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // <Link data-freenet-no-intercept> — soft nav from Discover stuck loading
+  // NEW CODE - TESTING: plain <a> so Freenet interceptor remounts cleanly
+  return (
+    <a href={freenetAbsoluteAppHref(to)} className={className}>
+      {children}
+    </a>
+  );
+}
+
+/** Programmatic Discover "Open" — same cold remount as ColdRepoLink. */
+export function coldNavigateToRepo(appPath: string): void {
+  if (!isBrowserNativeMode()) {
+    window.location.assign(appPath);
+    return;
+  }
+  window.location.assign(freenetAbsoluteAppHref(appPath));
 }

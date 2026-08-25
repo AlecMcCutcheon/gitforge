@@ -8,6 +8,7 @@
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigationType } from "react-router-dom";
 import { forgeWebsiteBasename } from "./website-constants";
+import { parseRepoRouteParts, repoHref } from "../lib/repo-path";
 
 const WEBSITE_BASE_CACHE_KEY = "gitforge.website.base";
 
@@ -68,6 +69,33 @@ export function freenetAbsoluteAppHref(appPath: string): string {
 
 let lastPostedKey: string | null = null;
 
+/**
+ * Deep repo views (/tree/…, /blob/…) 404 if the Freenet shell treats them as
+ * real contract paths. Keep the outer URL at the repo root; SPA still routes.
+ */
+function repoRootPathForShell(pathname: string): string {
+  const parts = pathname.replace(/^\//, "").split("/").filter(Boolean);
+  const parsed = parseRepoRouteParts(parts);
+  if (!parsed || parsed.rest.length === 0) return pathname;
+  const head = parsed.rest[0];
+  if (
+    head !== "tree" &&
+    head !== "blob" &&
+    head !== "raw" &&
+    head !== "commits" &&
+    head !== "branches" &&
+    head !== "tags" &&
+    head !== "new" &&
+    head !== "upload" &&
+    head !== "settings"
+  ) {
+    return pathname;
+  }
+  return repoHref(parsed.prefix, parsed.label, "", {
+    ownerSlug: parsed.ownerSlug,
+  });
+}
+
 /** Drop Freenet shell routing params — they belong on iframe.src, not the tab URL. */
 function publicSearch(search: string): string {
   if (!search) return "";
@@ -91,10 +119,11 @@ export function postShellHistory(opts: {
 }): void {
   if (typeof window === "undefined") return;
   if (!window.parent || window.parent === window) return;
-  const path = opts.path.startsWith("/") ? opts.path : `/${opts.path}`;
+  const rawPath = opts.path.startsWith("/") ? opts.path : `/${opts.path}`;
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-  // const search = opts.search ?? "";
-  // NEW CODE - TESTING: don't forward ?__sandbox=1 into the shell address bar
+  // const path = rawPath;
+  // NEW CODE - TESTING: never push /tree|/blob deep paths to Freenet shell
+  const path = repoRootPathForShell(rawPath);
   const search = publicSearch(opts.search ?? "");
   const hash = opts.hash ?? "";
   const key = `${path}${search}${hash}`;
@@ -109,7 +138,7 @@ export function postShellHistory(opts: {
         search,
         hash,
         href: freenetShellHref(path, search, hash),
-        replace: opts.replace === true,
+        replace: opts.replace === true || path !== rawPath,
       },
       "*",
     );
@@ -145,13 +174,16 @@ export function FreenetShellHistorySync(): null {
     }
 
     // OLD CODE - KEEP UNTIL CONFIRMED WORKING
-    // if (navType === "POP") return; // skipped soft sync — bar stayed on repo URL
-    // NEW CODE - TESTING: always sync; POP/REPLACE use replaceState (no extra entries)
+    // postShellHistory(full pathname) — shell/prefetch GETs /tree/main → 404
+    // (console "main:1") and can remount the iframe mid tip-load.
+    // NEW CODE - TESTING: keep Freenet shell URL at repo root for deep views
+    const shellPath = repoRootPathForShell(location.pathname);
+
     postShellHistory({
-      path: location.pathname,
+      path: shellPath,
       search: location.search,
       hash: location.hash,
-      replace: navType === "POP" || navType === "REPLACE",
+      replace: navType === "POP" || navType === "REPLACE" || shellPath !== location.pathname,
     });
   }, [location, navType]);
 

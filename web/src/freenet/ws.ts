@@ -450,7 +450,7 @@ function drainQueueForAbort(queue: QueuedGet[], err: Error, scope?: string): voi
 
 /**
  * Drop queued + in-flight contract GETs for a cancel scope (repo prefix).
- * Call when navigating away so stalled tip packs don't block the next page.
+ * Call when navigating away so stalled tip packs don't clog the WS pump.
  */
 export function abortContractGets(scope?: string): void {
   const err = new Error(
@@ -460,6 +460,7 @@ export function abortContractGets(scope?: string): void {
   );
   drainQueueForAbort(highGetQueue, err, scope);
   drainQueueForAbort(lowGetQueue, err, scope);
+  let killedInFlight = false;
   if (
     cancelInFlightGet &&
     inFlightJob &&
@@ -470,13 +471,38 @@ export function abortContractGets(scope?: string): void {
     cancelInFlightGet = null;
     inFlightJob = null;
     cancel(err);
+    killedInFlight = true;
   }
-  // Hung connect/GET must not keep the shell WS slot; next route gets a fresh socket.
-  resetFreenetConn();
-  // NEW CODE - TESTING: also drop chunk-pool aux sockets on tip leave
-  void import("./chunk-ws-pool")
-    .then((m) => m.resetChunkWsPool())
-    .catch(() => {});
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // resetFreenetConn() always — Discover→repo (or deferred clear of repo B while
+  // loading A) tore down the socket mid-GET → stuck "Reading refs" until reload.
+  // NEW CODE - TESTING: only reset when we cancelled in-flight or full abort
+  if (killedInFlight || !scope) {
+    resetFreenetConn();
+    void import("./chunk-ws-pool")
+      .then((m) => m.resetChunkWsPool())
+      .catch(() => {});
+  }
+}
+
+/**
+ * Drop Discover/profile soft GETs waiting in the low queue so a repo tip/refs
+ * GET is next after the current in-flight finishes (or is preempted by high).
+ */
+export function flushBackgroundContractGets(
+  reason = "background contract GET flushed",
+): void {
+  const err = new Error(reason);
+  while (lowGetQueue.length > 0) {
+    const job = lowGetQueue.shift();
+    if (!job) break;
+    job.aborted = true;
+    job.reject(err);
+  }
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // Also cancelled in-flight low + resetFreenetConn — raced the refs GET reconnect
+  // NEW CODE - TESTING: only drain the queue; high enqueue already preempts low
+  void pumpContractGets();
 }
 
 function enqueueContractGet(

@@ -60,6 +60,7 @@ import {
 } from "../lib/repo-path";
 import { parseWhoamiStdout } from "../lib/whoami";
 import { clearRepoTipCaches } from "../freenet/native-api";
+import { flushBackgroundContractGets } from "../freenet/ws";
 import {
   cancelScheduledRepoTipCacheClear,
   scheduleRepoTipCacheClear,
@@ -558,6 +559,11 @@ export function RepoPage() {
     // Kept previous repo while refetching (rename could canonicalize back to old label).
     // NEW CODE - TESTING: drop stale payload when URL label/prefix changes
     setRepo(null);
+    // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+    // api.repo immediately — Discover soft profile GETs clogged the FIFO WS
+    // dynamic import().then(flush) delayed the refs GET a tick
+    // NEW CODE - TESTING: sync flush then load refs
+    flushBackgroundContractGets("repo page claimed WS");
     void api
       .repo(prefix, label)
       .then((data) => {

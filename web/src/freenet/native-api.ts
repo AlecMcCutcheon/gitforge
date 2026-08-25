@@ -161,10 +161,9 @@ export async function nativeRepo(
     !(summary.tipped_bundles && summary.tipped_bundles.length > 0);
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // void nativeEnsureTip(prefix, defaultBranch).catch(() => undefined);
-  // NEW CODE - TESTING: skip tip prefetch on empty create (no refs/packs yet)
-  if (!empty && !softDelete.deleted) {
-    void nativeEnsureTip(prefix, defaultBranch).catch(() => undefined);
-  }
+  // Prefetch raced TreeView's tip load; tip deadline abortContractGets(prefix)
+  // killed the Code tab GETs → Discover→repo stuck until hard reload.
+  // NEW CODE - TESTING: tip packs load only from tree/blob/commits views
   return {
     url: {
       prefix,

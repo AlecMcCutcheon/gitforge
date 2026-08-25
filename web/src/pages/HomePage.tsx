@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Link } from "../spa-link";
+import { ColdRepoLink, Link, coldNavigateToRepo } from "../spa-link";
 import { api, type DemoRepo, type ForgeRegistration } from "../api";
 import { StarCountBadge } from "../components/StarButton";
 import { PersonName } from "../components/PersonName";
@@ -125,7 +125,10 @@ export function HomePage() {
       return;
     }
     setError(null);
-    void navigate(repoHref(parsed.prefix, parsed.label));
+    // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+    // void navigate(repoHref(...)); // soft SPA — stuck from Discover
+    // NEW CODE - TESTING: cold remount like pasting the repo URL
+    coldNavigateToRepo(repoHref(parsed.prefix, parsed.label));
   };
 
   const onSubmit = (e: FormEvent) => {
@@ -174,7 +177,13 @@ export function HomePage() {
             if (!parsed) return null;
             return (
               <li key={demo.url}>
-                <Link to={repoHref(parsed.prefix, parsed.label)} className="repo-card">
+                {/* OLD CODE - KEEP UNTIL CONFIRMED WORKING
+                <Link to={repoHref(...)} className="repo-card">
+                NEW CODE - TESTING: ColdRepoLink remounts like a direct URL load */}
+                <ColdRepoLink
+                  to={repoHref(parsed.prefix, parsed.label)}
+                  className="repo-card"
+                >
                   <strong>
                     {demo.name} <StarCountBadge prefix={parsed.prefix} />
                   </strong>
@@ -182,7 +191,7 @@ export function HomePage() {
                   <span className="mono">
                     {repoPathDisplay(parsed.prefix, parsed.label)}
                   </span>
-                </Link>
+                </ColdRepoLink>
               </li>
             );
           })}
@@ -211,12 +220,19 @@ export function HomePage() {
             {registryOnly.map((r) => (
               <li key={r.repo_prefix}>
                 <div className="repo-card">
-                  <Link to={repoHref(r.repo_prefix, r.label, "", { ownerFingerprint: r.identity_fingerprint })}>
+                  {/* OLD CODE - KEEP UNTIL CONFIRMED WORKING
+                  <Link to={repoHref(..., { ownerFingerprint })}>
+                  NEW CODE - TESTING: cold remount (same as paste URL) */}
+                  <ColdRepoLink
+                    to={repoHref(r.repo_prefix, r.label, "", {
+                      ownerFingerprint: r.identity_fingerprint,
+                    })}
+                  >
                     <strong>
                       {r.name ?? r.label}{" "}
                       <StarCountBadge prefix={r.repo_prefix} />
                     </strong>
-                  </Link>
+                  </ColdRepoLink>
                   <span className="muted">
                     {r.description ?? (
                       <>
@@ -229,7 +245,9 @@ export function HomePage() {
                     )}
                   </span>
                   <span className="mono">
-                    {repoPathDisplay(r.repo_prefix, r.label, { ownerFingerprint: r.identity_fingerprint })}
+                    {repoPathDisplay(r.repo_prefix, r.label, {
+                      ownerFingerprint: r.identity_fingerprint,
+                    })}
                   </span>
                 </div>
               </li>
@@ -247,7 +265,7 @@ export function HomePage() {
               if (!parsed) return null;
               return (
                 <li key={repo.cacheKey}>
-                  <Link
+                  <ColdRepoLink
                     to={repoHref(parsed.prefix, parsed.label)}
                     className="repo-card"
                   >
@@ -255,7 +273,7 @@ export function HomePage() {
                     <span className="mono">
                       {repoPathDisplay(parsed.prefix, parsed.label)}
                     </span>
-                  </Link>
+                  </ColdRepoLink>
                 </li>
               );
             })}
