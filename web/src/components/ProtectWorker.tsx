@@ -11,7 +11,7 @@ import {
 } from "../freenet/tip-cache-lifecycle";
 import { syncRepoProtectMembership } from "../freenet/protect-tip-sync";
 import { hasLocalProtectCapability } from "../freenet/local-protect";
-import { parseRepoPath } from "../lib/repo-path";
+import { parseRepoRouteParts } from "../lib/repo-path";
 
 const DEBOUNCE_MS = 750;
 const pending = new Map<string, number>();
@@ -42,9 +42,9 @@ function scheduleProtectSync(prefix: string): void {
 
 function prefixFromLocation(): string | null {
   try {
-    const path = `${window.location.pathname}${window.location.search || ""}`;
-    const parsed = parseRepoPath(path);
-    return parsed.ok ? parsed.prefix : null;
+    const parts = window.location.pathname.split("/").filter(Boolean);
+    const parsed = parseRepoRouteParts(parts);
+    return parsed?.prefix ?? null;
   } catch {
     return null;
   }
