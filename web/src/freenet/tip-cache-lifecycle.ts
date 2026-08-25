@@ -100,3 +100,32 @@ export function onRepoTipPushed(
   window.addEventListener("gitforge-repo-tip-pushed", fn);
   return () => window.removeEventListener("gitforge-repo-tip-pushed", fn);
 }
+
+/**
+ * Repo page / tip browse observed this prefix. ProtectWorker uses this so a
+ * bare CLI `git push freenet` still re-syncs pins when someone opens the repo.
+ */
+export function notifyRepoObserved(prefix: string): void {
+  const p = prefix.trim();
+  if (!p) return;
+  try {
+    window.dispatchEvent(
+      new CustomEvent("gitforge-repo-observed", {
+        detail: { prefix: p },
+      }),
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+export function onRepoObserved(
+  handler: (prefix: string) => void,
+): () => void {
+  const fn = (ev: Event) => {
+    const prefix = (ev as CustomEvent<{ prefix: string }>).detail?.prefix;
+    if (prefix) handler(prefix);
+  };
+  window.addEventListener("gitforge-repo-observed", fn);
+  return () => window.removeEventListener("gitforge-repo-observed", fn);
+}

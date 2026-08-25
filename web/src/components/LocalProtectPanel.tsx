@@ -40,6 +40,8 @@ async function tipKeysForPrefix(
     const state = await fetchRepoState(prefix);
     const summary = (await summarizeRepoState(state)) as {
       tipped_bundles?: TipBundle[];
+      refs?: Array<{ name: string; target: string }>;
+      mirror_mode?: string | null;
     };
     return tipPackKeysFromBundles(
       summary.tipped_bundles ?? [],
@@ -51,6 +53,11 @@ async function tipKeysForPrefix(
         }
       },
       retention,
+      3,
+      {
+        refTargets: (summary.refs ?? []).map((r) => r.target),
+        mirrorMode: summary.mirror_mode,
+      },
     );
   } catch {
     return [];
@@ -233,7 +240,9 @@ export function LocalProtectPanel({
       <p className="muted tiny gh-repo-settings-help">
         Keep this repository’s contract and tip packs warm on this Freenet node.
         Authorize once in the Freenet shell; new tips re-sync under the same
-        scope.
+        scope. “Current tip packs” means every pack still needed for the live
+        tip graph — including older packs that soft-fill still uses — not only
+        the most recently pushed pack.
       </p>
 
       <div className="local-protect-fields">
@@ -247,8 +256,11 @@ export function LocalProtectPanel({
               void onRetentionChange(e.target.value as TipRetention)
             }
           >
-            <option value="current">Latest tips only</option>
-            <option value="last_n">Recent history (last 3)</option>
+            {/* OLD CODE - KEEP UNTIL CONFIRMED WORKING */}
+            {/* <option value="current">Latest tips only</option> */}
+            {/* NEW CODE - TESTING: current = live tip closure, not newest-by-age */}
+            <option value="current">Current tip packs (live tip graph)</option>
+            <option value="last_n">Recent tipped packs (last 3 + live tips)</option>
             <option value="all">All tipped packs</option>
           </select>
         </label>

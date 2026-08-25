@@ -23,6 +23,9 @@ const RESERVED_TOP = new Set([
   "account",
   "identity",
   "new",
+  "import",
+  "inbox",
+  "docs",
   UNREGISTERED_REPO_ROOT,
 ]);
 

@@ -443,32 +443,79 @@ export function grantAppCliHint(): string {
   return `freenet local-protect grant-app ${appContractKey()}`;
 }
 
+/** Optional live-repo context for tip-pack membership expansion. */
+export interface TipPackMembershipContext {
+  /** Commit hex targets from current `state.refs` (any tip still live). */
+  refTargets?: Iterable<string>;
+  /** Publisher `mirror-mode`: `snapshot` | `history` | absent. */
+  mirrorMode?: string | null;
+}
+
 /**
  * Expand child contract keys from parent tipped-bundle summaries (GitForge recipe).
  * Parent field paths are declared in gitforgeTipPackMembership(); core never sees RepoState.
+ *
+ * Retention semantics (packs, not age):
+ * - `current` — packs that still make up the live tip graph. Snapshot: only
+ *   packs whose tip_commit is a current ref. History / unknown: all tipped
+ *   packs (soft-fill still needs chronologically older packs that tip ancestors).
+ * - `last_n` — always keep current-ref tip packs, plus additional tipped packs
+ *   up to `lastN` total (unordered extras; prefer live tips first).
+ * - `all` — every tipped pack on parent state.
  */
 export function tipPackKeysFromBundles(
   bundles: Array<{
     pack_hash?: string | null;
     manifest_hash?: string | null;
+    tip_commit?: string | null;
   }>,
   packKeyForHash: (hashHex: string) => string,
   retention: TipRetention = "current",
   lastN = 3,
+  ctx: TipPackMembershipContext = {},
 ): string[] {
-  let list = bundles.slice();
+  const tipped = bundles.slice();
+  const refSet = new Set(
+    [...(ctx.refTargets ?? [])]
+      .map((t) => String(t).trim().toLowerCase())
+      .filter(Boolean),
+  );
+  const isLiveTip = (b: { tip_commit?: string | null }) => {
+    const tip = (b.tip_commit || "").trim().toLowerCase();
+    return tip.length > 0 && refSet.has(tip);
+  };
+
+  let list = tipped;
   // OLD CODE - KEEP UNTIL CONFIRMED WORKING
   // if (retention === "current") {
-  //   list = list.slice(0, Math.max(list.length, 0)); // no-op — same as "all"
+  //   list = list.slice(0, 1); // wrong: unordered tipped list ≠ newest; drops
+  //   // soft-fill packs still required for the live tip closure
   // } else if (retention === "last_n") {
   //   list = list.slice(0, Math.max(1, lastN));
   // }
-  // NEW CODE - TESTING: current = newest tipped bundle only; last_n / all as labeled
+  // NEW CODE - TESTING: current = live tip closure; last_n keeps live tips first
   if (retention === "current") {
-    list = list.slice(0, 1);
+    const mode = (ctx.mirrorMode || "").trim().toLowerCase();
+    if (mode === "snapshot" && refSet.size > 0) {
+      const live = tipped.filter(isLiveTip);
+      // Fall back if tip extensions lag refs (legacy / mid-push).
+      list = live.length > 0 ? live : tipped;
+    } else {
+      // History (or unknown): every tipped pack may still be part of soft-fill
+      // for the current tip — age does not mean unused.
+      list = tipped;
+    }
   } else if (retention === "last_n") {
-    list = list.slice(0, Math.max(1, lastN));
+    const n = Math.max(1, lastN);
+    const live = refSet.size > 0 ? tipped.filter(isLiveTip) : [];
+    const rest = tipped.filter((b) => !live.includes(b));
+    list = [...live];
+    for (const b of rest) {
+      if (list.length >= Math.max(n, live.length)) break;
+      list.push(b);
+    }
   }
+
   const keys: string[] = [];
   const seen = new Set<string>();
   for (const b of list) {
@@ -504,7 +551,7 @@ export function gitforgeTipPackMembership(
   return {
     recipe_id: "freenet-git.tip-packs",
     summary:
-      "Pin this repository contract and tip-pack contracts listed on its parent state",
+      "Pin this repository contract and tip-pack contracts that make up the live tip graph on parent state (current ≠ chronologically newest)",
     from_anchor: {
       state_label: "freenet-git parent state",
       child_id_fields: [

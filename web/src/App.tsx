@@ -9,6 +9,7 @@ import { RepoSiteNav, useRepoRoute } from "./components/RepoSiteNav";
 import { ProtectWorker } from "./components/ProtectWorker";
 import { PublicGoodsDutyWorker } from "./components/PublicGoodsDutyWorker";
 import { AccountPage } from "./pages/AccountPage";
+import { DocsPage } from "./pages/DocsPage";
 import { InboxPage } from "./pages/InboxPage";
 import { ImportRepoPage } from "./pages/ImportRepoPage";
 import { NewRepoPage } from "./pages/NewRepoPage";
@@ -110,6 +111,8 @@ export function App() {
         <Route path="/identity" element={<AccountPage />} />
         <Route path="/account" element={<Navigate to="/identity" replace />} />
         <Route path="/inbox" element={<InboxPage />} />
+        <Route path="/docs" element={<DocsPage />} />
+        <Route path="/docs/:slug" element={<DocsPage />} />
         <Route path="/people/:fingerprint" element={<PeoplePage />} />
         <Route path="/r/:repoId/*" element={<RepoPage />} />
         <Route path="/:ownerSlug/:repoId/*" element={<RepoPage />} />

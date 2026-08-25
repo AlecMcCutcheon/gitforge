@@ -370,6 +370,16 @@ export function RepoPage() {
     };
   }, [prefix]);
 
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // ProtectWorker only listened to in-app tip pushes — CLI freenet pushes left pins stale.
+  // NEW CODE - TESTING: browsing a repo notifies ProtectWorker to re-sync membership
+  useEffect(() => {
+    if (!prefix) return;
+    void import("../freenet/tip-cache-lifecycle").then(({ notifyRepoObserved }) => {
+      notifyRepoObserved(prefix);
+    });
+  }, [prefix]);
+
   useEffect(() => {
     if (!prefix) return;
     let cancelled = false;

@@ -564,6 +564,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "freenet-forge-tip"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "blake3",
+ "bs58",
+ "clap",
+ "freenet-git",
+ "freenet-git-tip",
+ "freenet-git-types",
+ "freenet-stdlib",
+ "hex",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "freenet-git"
 version = "0.1.24"
 dependencies = [
@@ -641,24 +659,6 @@ dependencies = [
  "serde",
  "serde_bytes",
  "thiserror",
-]
-
-[[package]]
-name = "freenet-hub-tip"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "blake3",
- "bs58",
- "clap",
- "freenet-git",
- "freenet-git-tip",
- "freenet-git-types",
- "freenet-stdlib",
- "hex",
- "serde",
- "serde_json",
- "tokio",
 ]
 
 [[package]]

@@ -80,11 +80,18 @@ export function RepoProtectChrome({ prefix, label }: RepoProtectChromeProps) {
         const state = await fetchRepoState(prefix);
         const summary = (await summarizeRepoState(state)) as {
           tipped_bundles?: TipBundle[];
+          refs?: Array<{ name: string; target: string }>;
+          mirror_mode?: string | null;
         };
         tipKeys = tipPackKeysFromBundles(
           summary.tipped_bundles ?? [],
           (h) => encodeKey(packContractKey(h)),
           "current",
+          3,
+          {
+            refTargets: (summary.refs ?? []).map((r) => r.target),
+            mirrorMode: summary.mirror_mode,
+          },
         );
       } catch {
         /* empty tips ok */

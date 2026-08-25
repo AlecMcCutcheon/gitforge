@@ -1,6 +1,6 @@
 /**
- * After tip push: if a repo Protect scope exists, re-sync tip pack membership.
- * Does not create scopes — only syncs under an already-approved repo grant.
+ * Keep repo Protect scopes aligned with live tip packs.
+ * Used after in-app tip push AND when browsing a pinned repo (CLI push catch-up).
  */
 
 import { packContractKey, repoContractKey } from "./keys";
@@ -13,7 +13,7 @@ import {
   tipPackKeysFromBundles,
   type TipRetention,
 } from "./local-protect";
-import { fetchRepoState } from "./tip-fetch";
+import { clearRepoStateCache, fetchRepoState } from "./tip-fetch";
 import { summarizeRepoState, type TipBundle } from "../tip-browse/decode-wasm";
 
 function encodeKey(key: { encode(): string } | string): string {
@@ -25,7 +25,17 @@ function encodeKey(key: { encode(): string } | string): string {
   }
 }
 
-export async function syncRepoProtectAfterTipPush(prefix: string): Promise<void> {
+function sameKeySet(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const s = new Set(a);
+  return b.every((k) => s.has(k));
+}
+
+/**
+ * If a repo Protect scope exists, re-sync tip pack membership from live
+ * RepoState. Does not create scopes — only syncs under an already-approved grant.
+ */
+export async function syncRepoProtectMembership(prefix: string): Promise<void> {
   if (!(await hasLocalProtectCapability())) return;
   const status = await fetchProtectStatus();
   if (!status) return;
@@ -46,15 +56,25 @@ export async function syncRepoProtectAfterTipPush(prefix: string): Promise<void>
 
   let tipKeys: string[] = [];
   try {
+    // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+    // const state = await fetchRepoState(prefix);
+    // NEW CODE - TESTING: drop cached RepoState so CLI tip pushes are visible
+    clearRepoStateCache(prefix);
     const state = await fetchRepoState(prefix);
     const summary = (await summarizeRepoState(state)) as {
       tipped_bundles?: TipBundle[];
+      refs?: Array<{ name: string; target: string }>;
+      mirror_mode?: string | null;
     };
     tipKeys = tipPackKeysFromBundles(
       summary.tipped_bundles ?? [],
       (hash) => encodeKey(packContractKey(hash)),
       retention,
       lastN,
+      {
+        refTargets: (summary.refs ?? []).map((r) => r.target),
+        mirrorMode: summary.mirror_mode,
+      },
     );
   } catch (e) {
     console.warn(
@@ -70,8 +90,18 @@ export async function syncRepoProtectAfterTipPush(prefix: string): Promise<void>
     ? tipKeys
     : [liveAnchor, ...tipKeys];
 
+  // Skip no-op sync when ledger already matches live tip closure.
+  if (sameKeySet(scope.ledger ?? [], desired)) return;
+
   const r = await syncScope(grantId, desired);
   if (!r.ok) {
-    console.warn("[local-protect] sync-scope after tip push:", r.error);
+    console.warn("[local-protect] sync-scope membership:", r.error);
   }
+}
+
+/** @deprecated Prefer syncRepoProtectMembership — same behavior. */
+export async function syncRepoProtectAfterTipPush(
+  prefix: string,
+): Promise<void> {
+  return syncRepoProtectMembership(prefix);
 }

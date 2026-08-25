@@ -222,7 +222,7 @@ export function repoScopePresentation(
         id: "tip_packs",
         label: "Tip packs",
         access: "sync members",
-        detail: `Auto pin/unpin tip packs listed on parent state (retention: ${retention}).`,
+        detail: `Auto pin/unpin tip packs that make up the live tip graph on parent state (retention: ${retention}). Chronologically older packs stay pinned while still in use.`,
       },
     ],
     redirectHint: "New tips re-sync under this scope without asking again.",

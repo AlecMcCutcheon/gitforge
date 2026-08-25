@@ -19,7 +19,7 @@ if [[ ! -f "${DIST}/index.html" ]]; then
   exit 1
 fi
 
-if ! fdev website list 2>/dev/null | grep -qE "(^|[[:space:]])${KEY_NAME}([[:space:]]|$)"; then
+if ! websites="$(fdev website list 2>/dev/null)" || ! grep -qE "(^|[[:space:]])${KEY_NAME}([[:space:]]|$)" <<<"$websites"; then
   echo "Initializing website key '${KEY_NAME}'…"
   fdev website init "${KEY_NAME}"
 fi
