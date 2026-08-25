@@ -1,7 +1,7 @@
 /**
  * Account Freenet reachability: ForgeProfile + ForgeVault soft-GETs.
  */
-import { forgeProfileKeyForFingerprint } from "./forge-profile";
+import { fetchForgeProfile } from "./forge-profile";
 import { forgeVaultKeyForId } from "./forge-vault";
 import { tryGetContractState } from "./ws";
 import { forgeOwnerContractsReady } from "./owner-constants";
@@ -15,8 +15,8 @@ export interface AccountHealthResult {
   checkedAt: number;
 }
 
-async function soft(
-  key: ReturnType<typeof forgeProfileKeyForFingerprint>,
+async function softVault(
+  key: ReturnType<typeof forgeVaultKeyForId>,
 ): Promise<"ok" | "missing"> {
   if (!key) return "missing";
   const bytes = await tryGetContractState(key);
@@ -40,17 +40,26 @@ export async function probeAccountHealth(input: {
   let vault: AccountContractReach = "n/a";
 
   if (input.fingerprint) {
-    profile = await soft(forgeProfileKeyForFingerprint(input.fingerprint));
+    // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+    // soft(forgeProfileKeyForFingerprint(...)) — only current WASM hash
+    // NEW CODE - TESTING: fetchForgeProfile probes current + legacy hashes
+    const hit = await fetchForgeProfile(input.fingerprint).catch(() => null);
+    profile = hit ? "ok" : "missing";
   }
   if (input.vaultId) {
-    vault = await soft(forgeVaultKeyForId(input.vaultId));
+    // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+    // soft miss → reliable reachability (30s) on every health check
+    // NEW CODE - TESTING: soft only; miss → unavailable (heal uses reachability)
+    const soft = await softVault(forgeVaultKeyForId(input.vaultId));
+    vault = soft === "ok" ? "ok" : "unavailable";
   }
 
   const bits: string[] = [];
   if (profile === "ok") bits.push("Public profile reachable.");
   else if (profile === "missing") bits.push("Public profile missing on this node.");
   if (vault === "ok") bits.push("Account vault reachable.");
-  else if (vault === "missing") bits.push("Account vault missing on this node.");
+  else if (vault === "unavailable")
+    bits.push("Account vault unreachable (not treated as missing).");
   if (bits.length === 0) bits.push("No account contracts to probe.");
 
   return {

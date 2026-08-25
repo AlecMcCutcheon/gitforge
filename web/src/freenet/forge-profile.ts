@@ -18,9 +18,78 @@ import {
   updateContract,
 } from "./ws";
 
+/**
+ * Older ForgeProfile WASM hashes (avatar caps 48_000 then 1_048_576).
+ * Instance ids include the code hash — reads must consider these or a stub
+ * Put on the new hash shadows the real profile forever.
+ */
+// OLD CODE - KEEP UNTIL CONFIRMED WORKING
+// const FORGE_PROFILE_WASM_HASH_B58_LEGACY = "AYg5…";
+// NEW CODE - TESTING: chain of prior profile WASM hashes
+const FORGE_PROFILE_WASM_HASH_B58_LEGACY: readonly string[] = [
+  "ANKc3EgdbQUiX7nSBz5RPKPxsjFiMd1T7k1GmY3Ttbj3", // MAX_AVATAR 1_048_576
+  "AYg5AtP3vAVZEmYKtUkQvMf3KfgxURGbdmA1ApnmtMKw", // MAX_AVATAR 48_000
+];
+
+function profileWasmHashesToProbe(): string[] {
+  const current = String(FORGE_PROFILE_WASM_HASH_B58 ?? "").trim();
+  const out: string[] = [];
+  if (current) out.push(current);
+  for (const h of FORGE_PROFILE_WASM_HASH_B58_LEGACY) {
+    if (h && h !== current && !out.includes(h)) out.push(h);
+  }
+  return out;
+}
+
+/** Accidental empty Put on a new WASM hash after a soft miss. */
+function isSparseProfileStub(p: ForgeProfileStateJson): boolean {
+  const metaKeys = Object.keys(p.public_meta ?? {}).filter((k) => {
+    const v = (p.public_meta?.[k] ?? "").trim();
+    return v.length > 0 && v !== "{}" && v !== "[]";
+  });
+  return (
+    !(p.avatar ?? "").trim() &&
+    !(p.bio ?? "").trim() &&
+    !(p.url ?? "").trim() &&
+    (p.inbox_messages?.length ?? 0) === 0 &&
+    metaKeys.length === 0
+  );
+}
+
+function pickBestProfile(
+  candidates: ForgeProfileStateJson[],
+): ForgeProfileStateJson | null {
+  if (candidates.length === 0) return null;
+  // Prefer rich state when it is at least as new as any sparse stub (WASM-bump
+  // poison: empty Put seq=1 hiding legacy seq=N). Highest seq still wins when
+  // the user intentionally cleared the profile (sparse with higher seq).
+  const rich = candidates.filter((p) => !isSparseProfileStub(p));
+  const sparse = candidates.filter((p) => isSparseProfileStub(p));
+  const maxSparseSeq = sparse.reduce((m, p) => Math.max(m, p.seq), -1);
+  const pool =
+    rich.length > 0 && rich.some((p) => p.seq >= maxSparseSeq)
+      ? rich
+      : candidates;
+  return pool.reduce((best, p) => {
+    if (p.seq !== best.seq) return p.seq > best.seq ? p : best;
+    if (isSparseProfileStub(best) !== isSparseProfileStub(p)) {
+      return isSparseProfileStub(best) ? p : best;
+    }
+    const aLen = (p.avatar ?? "").length;
+    const bLen = (best.avatar ?? "").length;
+    if (aLen !== bLen) return aLen > bLen ? p : best;
+    const aInbox = p.inbox_messages?.length ?? 0;
+    const bInbox = best.inbox_messages?.length ?? 0;
+    return aInbox >= bInbox ? p : best;
+  });
+}
+
 /** Soft listing GETs stay short; writes need a real existence check. */
-/** Align with FreenetWsApi REQUEST_TIMEOUT_MS (30s) + small margin. */
-const PROFILE_WRITE_TIMEOUT_MS = 35_000;
+/** Align with FreenetWsApi REQUEST_TIMEOUT_MS; large GIF avatars need headroom. */
+// OLD CODE - KEEP UNTIL CONFIRMED WORKING
+// const PROFILE_WRITE_TIMEOUT_MS = 35_000;
+// NEW CODE - TESTING: multi-MiB avatar Puts
+const PROFILE_WRITE_TIMEOUT_MS = 120_000;
 
 export interface InboxMessageJson {
   id: string;
@@ -121,11 +190,12 @@ function paramsBytesForFingerprint(fingerprint: string): Uint8Array {
 
 export function forgeProfileKeyForFingerprint(
   fingerprint: string,
+  wasmHashB58: string | null = FORGE_PROFILE_WASM_HASH_B58,
 ): ContractKey | null {
-  if (!FORGE_PROFILE_WASM_HASH_B58 || !fingerprint) return null;
+  if (!wasmHashB58 || !fingerprint) return null;
   const params = paramsBytesForFingerprint(fingerprint);
-  const instance = deriveInstanceId(FORGE_PROFILE_WASM_HASH_B58, params);
-  const codeBytes = bs58.decode(FORGE_PROFILE_WASM_HASH_B58);
+  const instance = deriveInstanceId(wasmHashB58, params);
+  const codeBytes = bs58.decode(wasmHashB58);
   return new ContractKey(
     instance.bytes as unknown as ConstructorParameters<typeof ContractKey>[0],
     codeBytes,
@@ -189,6 +259,9 @@ function isMissingProfileError(err: unknown): boolean {
  * - soft (default): fast fail for people listings / browse
  * - reliable: high-priority retries for restore / seq (no subscribe — that hangs
  *   on missing contracts when combined with fetchContract)
+ *
+ * Probes current + legacy WASM hashes and picks the richest state so a stub
+ * Put on a new avatar-limit WASM cannot hide the real profile.
  */
 export async function fetchForgeProfile(
   fingerprint: string,
@@ -197,14 +270,73 @@ export async function fetchForgeProfile(
   if (!forgeProfileReady() || !fingerprint) {
     return null;
   }
-  const key = forgeProfileKeyForFingerprint(fingerprint);
+  const hashes = profileWasmHashesToProbe();
+  if (hashes.length === 0) return null;
+
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // Sequential probe of every hash — soft miss × 3 ≈ 12s even when current hit
+  // NEW CODE - TESTING: soft current first; only fan out to legacy when needed
+  if (!opts?.reliable) {
+    const currentHash = hashes[0]!;
+    try {
+      const current = await fetchForgeProfileAtHash(
+        fingerprint,
+        currentHash,
+        opts,
+      );
+      if (current && !isSparseProfileStub(current)) {
+        return current;
+      }
+      if (hashes.length === 1) return current;
+      const legacyHits = await Promise.all(
+        hashes.slice(1).map((hash) =>
+          fetchForgeProfileAtHash(fingerprint, hash, opts).catch(() => null),
+        ),
+      );
+      return pickBestProfile(
+        [current, ...legacyHits].filter(
+          (p): p is ForgeProfileStateJson => p != null,
+        ),
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  const settled = await Promise.all(
+    hashes.map((hash) =>
+      fetchForgeProfileAtHash(fingerprint, hash, opts).catch((err) => {
+        if (!isMissingProfileError(err)) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (!/timed out|timeout|Connection closed|1006/i.test(msg)) {
+            console.warn("[forge-profile] reliable probe:", msg);
+          }
+        }
+        return null;
+      }),
+    ),
+  );
+  return pickBestProfile(
+    settled.filter((p): p is ForgeProfileStateJson => p != null),
+  );
+}
+
+async function fetchForgeProfileAtHash(
+  fingerprint: string,
+  wasmHashB58: string | null,
+  opts?: { reliable?: boolean },
+): Promise<ForgeProfileStateJson | null> {
+  const key = forgeProfileKeyForFingerprint(fingerprint, wasmHashB58);
   if (!key) return null;
   if (opts?.reliable) {
     try {
       const raw = await getContractState(key, {
         priority: "high",
-        timeoutMs: 12_000,
-        maxAttempts: 2,
+        // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+        // timeoutMs: 12_000, maxAttempts: 2 — up to 24s per hash
+        // NEW CODE - TESTING: one shorter attempt; parallel across hashes
+        timeoutMs: 8_000,
+        maxAttempts: 1,
         // Do NOT set fetchContract+subscribe here — missing contracts hang the WS.
       });
       return parseProfileState(raw);
@@ -222,6 +354,116 @@ export async function fetchForgeProfile(
   const raw = await tryGetContractState(key);
   if (!raw) return null;
   return parseProfileState(raw);
+}
+
+/**
+ * If the best profile still lives only on a legacy WASM hash (or current is a
+ * sparse stub left by a soft-miss Put), re-publish onto the current hash so
+ * vault / sync / Account UI all see the same contract instance.
+ */
+export async function migrateForgeProfileToCurrentWasm(
+  fingerprint: string,
+): Promise<ForgeProfileStateJson | null> {
+  const currentHash = String(FORGE_PROFILE_WASM_HASH_B58 ?? "").trim();
+  const hashes = profileWasmHashesToProbe();
+
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // Sequential reliable GETs on every hash — blocked Account for ~30s
+  // NEW CODE - TESTING: soft parallel first; reliable only if soft empty
+  const softHits = await Promise.all(
+    hashes.map((hash) =>
+      fetchForgeProfileAtHash(fingerprint, hash).catch(() => null),
+    ),
+  );
+  const currentIdx = currentHash ? hashes.indexOf(currentHash) : -1;
+  let onCurrent = currentIdx >= 0 ? softHits[currentIdx] ?? null : null;
+
+  let richestLegacy: ForgeProfileStateJson | null = null;
+  for (let i = 0; i < hashes.length; i++) {
+    if (i === currentIdx) continue;
+    const hit = softHits[i];
+    if (!hit || isSparseProfileStub(hit)) continue;
+    if (
+      !richestLegacy ||
+      hit.seq > richestLegacy.seq ||
+      ((hit.avatar?.length ?? 0) > (richestLegacy.avatar?.length ?? 0) &&
+        hit.seq >= richestLegacy.seq)
+    ) {
+      richestLegacy = hit;
+    }
+  }
+
+  const softNeedDeeper =
+    (!onCurrent || isSparseProfileStub(onCurrent)) && !richestLegacy;
+  if (softNeedDeeper) {
+    const reliableHits = await Promise.all(
+      hashes.map((hash) =>
+        fetchForgeProfileAtHash(fingerprint, hash, {
+          reliable: true,
+        }).catch(() => null),
+      ),
+    );
+    onCurrent = currentIdx >= 0 ? reliableHits[currentIdx] ?? null : null;
+    richestLegacy = null;
+    for (let i = 0; i < hashes.length; i++) {
+      if (i === currentIdx) continue;
+      const hit = reliableHits[i];
+      if (!hit || isSparseProfileStub(hit)) continue;
+      if (
+        !richestLegacy ||
+        hit.seq > richestLegacy.seq ||
+        ((hit.avatar?.length ?? 0) > (richestLegacy.avatar?.length ?? 0) &&
+          hit.seq >= richestLegacy.seq)
+      ) {
+        richestLegacy = hit;
+      }
+    }
+  }
+
+  // Recover WASM-bump poison (sparse current with seq <= rich legacy).
+  // Do NOT undo an intentional clear (sparse current with higher seq).
+  let source = onCurrent;
+  if (richestLegacy) {
+    if (!onCurrent) {
+      source = richestLegacy;
+    } else if (
+      isSparseProfileStub(onCurrent) &&
+      onCurrent.seq <= richestLegacy.seq
+    ) {
+      source = richestLegacy;
+    } else if (onCurrent.seq < richestLegacy.seq) {
+      source = richestLegacy;
+    } else if (
+      (richestLegacy.avatar?.length ?? 0) > (onCurrent.avatar?.length ?? 0) &&
+      richestLegacy.seq >= onCurrent.seq
+    ) {
+      source = richestLegacy;
+    }
+  }
+  if (!source) return null;
+
+  const needMigrate =
+    !onCurrent ||
+    (isSparseProfileStub(onCurrent) && !isSparseProfileStub(source)) ||
+    onCurrent.seq < source.seq ||
+    ((source.avatar?.length ?? 0) > (onCurrent.avatar?.length ?? 0) &&
+      !isSparseProfileStub(source) &&
+      source.seq >= onCurrent.seq);
+  if (!needMigrate) return onCurrent ?? source;
+
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // putOrUpdateForgeProfile(best) — reused legacy seq/sig on a new instance
+  // NEW CODE - TESTING: re-sign + bump seq onto current WASM via publish
+  return publishForgeProfile({
+    username: source.username,
+    public_email: source.public_email,
+    bio: source.bio,
+    url: source.url,
+    avatar: source.avatar,
+    inbox_pk: source.inbox_pk,
+    inbox_messages: source.inbox_messages,
+    public_meta: source.public_meta,
+  });
 }
 
 /** Subscribe + fetch WASM so this node can host before Update. */

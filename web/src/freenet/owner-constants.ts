@@ -29,7 +29,7 @@ export const FORGE_STARS_WASM_HASH_B58 = "2C84yT51WMVpfNQXoUbqAN7DR2rKnvcdUGHvSr
 export const FORGE_PROFILE_PARAMS_PREFIX = "gitforge-profile-v1:";
 
 /** BLAKE3 of hub_profile.wasm (base58). Empty until profile artefact is passed. */
-export const FORGE_PROFILE_WASM_HASH_B58 = "AYg5AtP3vAVZEmYKtUkQvMf3KfgxURGbdmA1ApnmtMKw";
+export const FORGE_PROFILE_WASM_HASH_B58 = "3jGgkdpe5fB9LuNZeuhMKTGgEBCrtKvMcBDQsboWXkgh";
 
 /** UTF-8 parameters prefix for ForgeRepoMeta (repo_prefix appended by SPA). */
 export const FORGE_REPO_PARAMS_PREFIX = "gitforge-repo-v1:";

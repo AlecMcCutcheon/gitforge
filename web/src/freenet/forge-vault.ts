@@ -74,8 +74,19 @@ function withWriteTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
   });
 }
 
+function isMissingVaultError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /Contract not found|empty state/i.test(msg);
+}
+
+function isVaultTransportError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /timed out|timeout|Connection closed|1006/i.test(msg);
+}
+
 export async function fetchForgeVault(
   vaultId: string,
+  opts?: { reliable?: boolean },
 ): Promise<ForgeVaultPublicState | null> {
   if (!forgeVaultReady()) {
     throw new Error(
@@ -88,6 +99,29 @@ export async function fetchForgeVault(
   }
   const key = forgeVaultKeyForId(id);
   if (!key) return null;
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // Soft tryGet only — 4s miss looked like "no vault" → recreate every reload
+  // NEW CODE - TESTING: reliable high-priority GET for ensure / probe
+  if (opts?.reliable) {
+    try {
+      const raw = await getContractState(key, {
+        priority: "high",
+        // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+        // timeoutMs: 15_000, maxAttempts: 2 — up to 30s on every Account load
+        // NEW CODE - TESTING: single shorter attempt for ensure path only
+        timeoutMs: 8_000,
+        maxAttempts: 1,
+        // Do NOT set fetchContract+subscribe — missing contracts hang the WS.
+      });
+      return parseVaultState(raw);
+    } catch (err) {
+      if (isMissingVaultError(err)) return null;
+      if (isVaultTransportError(err)) {
+        throw err instanceof Error ? err : new Error(String(err));
+      }
+      throw err instanceof Error ? err : new Error(String(err));
+    }
+  }
   const raw = await tryGetContractState(key);
   if (!raw) return null;
   return parseVaultState(raw);

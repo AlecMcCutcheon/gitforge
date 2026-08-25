@@ -40,7 +40,12 @@ export function ProfileAvatar({
         width={size}
         height={size}
         className={className}
-        style={{ width: size, height: size, objectFit: "cover" }}
+        // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+        // style={{ width: size, height: size, objectFit: "cover" }}
+        // — inline px overrode CSS (.settings-avatar-img 200px, .profile-avatar
+        // 120px) while VaultIdenticon respected the class → upload looked smaller.
+        // NEW CODE - TESTING: attributes + object-fit only; CSS class owns display size
+        style={{ objectFit: "cover" }}
       />
     );
   }

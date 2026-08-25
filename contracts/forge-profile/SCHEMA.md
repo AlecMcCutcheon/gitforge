@@ -19,7 +19,7 @@ Parameters = UTF-8:
 | `public_email` | string | ≤256 (contact metadata) |
 | `bio` | string | ≤512 |
 | `url` | string | ≤512 |
-| `avatar` | string | ≤48000 |
+| `avatar` | string | ≤16777216 (data-URL; ~12 MiB binary) |
 | `inbox_pk` | string | 64 hex X25519 public seal key (or empty) |
 | `inbox_messages` | array | opaque sealed blobs (see below) |
 | `public_meta` | object | `string → string` bag (SPA conventions; see below) |

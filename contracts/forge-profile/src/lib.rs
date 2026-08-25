@@ -21,7 +21,11 @@ const PARAMS_PREFIX: &str = "gitforge-profile-v1:";
 const SCHEMA_VERSION: u32 = 3;
 const MAX_BIO: usize = 512;
 const MAX_URL: usize = 512;
-const MAX_AVATAR: usize = 48_000;
+// OLD CODE - KEEP UNTIL CONFIRMED WORKING
+// const MAX_AVATAR: usize = 48_000;
+// const MAX_AVATAR: usize = 1_048_576; // ~768 KiB file — still too small for some GIFs
+// NEW CODE - TESTING: 16 MiB data-URL chars (~12 MiB raw file)
+const MAX_AVATAR: usize = 16_777_216;
 const MAX_EMAIL: usize = 256;
 const MAX_USERNAME: usize = 128;
 const MAX_INBOX_PK_HEX: usize = 64;

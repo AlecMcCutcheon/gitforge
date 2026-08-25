@@ -17,6 +17,7 @@ import {
 import { fetchForgeVault, putOrUpdateForgeVault } from "./forge-vault";
 import {
   fetchForgeProfile,
+  migrateForgeProfileToCurrentWasm,
   publishForgeProfile,
   type ForgeProfileStateJson,
 } from "./forge-profile";
@@ -29,7 +30,7 @@ import {
   setCachedInboxMessages,
   type DecryptedInboxMessage,
 } from "./inbox-crypto";
-import { normalizeProfileAvatar } from "../lib/avatar-image";
+import { normalizeProfileAvatar, MAX_PROFILE_AVATAR_DATA_URL_CHARS } from "../lib/avatar-image";
 import { isWsDropError, resetFreenetConn } from "./ws";
 import {
   nativeAcceptContributorCoupon,
@@ -316,11 +317,50 @@ export async function probeVaultBackupEnabled(
 ): Promise<boolean> {
   const id = vaultId ? normalizeVaultId(vaultId) : getSessionVaultId();
   if (!id) return false;
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // Always reliable GET — Account page waited ~30s every load
+  // NEW CODE - TESTING: soft GET only (instant when local); ensure path is reliable
   try {
-    const state = await fetchForgeVault(id);
-    return Boolean(state?.identity_dek_wrap?.blob_b64);
+    const soft = await fetchForgeVault(id);
+    if (soft?.identity_dek_wrap?.blob_b64) return true;
   } catch {
-    return false;
+    /* soft miss */
+  }
+  // Soft miss must not look like "disabled" forever if vault exists remotely —
+  // ensureSignedInAccountVault does the reliable check / create decision.
+  return false;
+}
+
+/**
+ * Distinguishes confirmed absence from soft/transport failure.
+ * Recreate vault only when `absent` — never on `unknown`.
+ */
+export type VaultReachability = "present" | "absent" | "unknown";
+
+export async function probeVaultReachability(
+  vaultId?: string | null,
+): Promise<VaultReachability> {
+  const id = vaultId ? normalizeVaultId(vaultId) : getSessionVaultId();
+  if (!id) return "absent";
+  try {
+    const soft = await fetchForgeVault(id);
+    if (soft?.identity_dek_wrap?.blob_b64) return "present";
+  } catch {
+    /* fall through to reliable */
+  }
+  try {
+    // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+    // fetchForgeVault(id) soft GET — timeout ≡ missing → endless recreate
+    // NEW CODE - TESTING: reliable only after soft miss (ensure / heal)
+    const state = await fetchForgeVault(id, { reliable: true });
+    return state?.identity_dek_wrap?.blob_b64 ? "present" : "absent";
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/timed out|timeout|Connection closed|1006/i.test(msg)) {
+      return "unknown";
+    }
+    console.warn("[auth] vault probe failed:", msg);
+    return "unknown";
   }
 }
 
@@ -1194,6 +1234,17 @@ async function ensureForgeProfilePublished(input: {
     });
   }
   if (existing) {
+    // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+    // Used existing as-is — stub on new WASM hash shadowed legacy forever
+    // NEW CODE - TESTING: migrate rich legacy → current avatar-limit WASM
+    try {
+      const migrated = await migrateForgeProfileToCurrentWasm(
+        input.identity.fingerprint,
+      );
+      if (migrated) existing = migrated;
+    } catch (e) {
+      console.warn("[auth] profile wasm migrate failed:", e);
+    }
     const username = existing.username.trim() || input.username;
     const email =
       existing.public_email.trim() ||
@@ -1225,6 +1276,7 @@ async function ensureForgeProfilePublished(input: {
           avatar: existing.avatar || "",
           inbox_pk,
           inbox_messages: existing.inbox_messages || [],
+          public_meta: existing.public_meta,
         });
       } catch (e) {
         console.warn("[auth] inbox_pk backfill failed:", e);
@@ -1240,6 +1292,8 @@ async function ensureForgeProfilePublished(input: {
   } catch (e) {
     console.warn("[auth] inbox_pk derive failed:", e);
   }
+  // Empty Put on a brand-new WASM hash is what poisoned sync after avatar
+  // bumps — only reach here when every legacy+current probe returned null.
   await publishForgeProfile({
     username: input.username,
     public_email: input.email,
@@ -1380,54 +1434,79 @@ export async function ensureAccountContracts(input: {
 /**
  * When signed in but ForgeVault ciphertext is missing (interrupted create/restore
  * or failed Put), re-attempt ensure with retries. Safe no-op if vault exists.
+ * Never recreates on GET timeout — that wiped real vaults every reload.
  */
+let ensureSignedInVaultInflight: Promise<{
+  vaultEnabled: boolean;
+  error?: string;
+}> | null = null;
+
 export async function ensureSignedInAccountVault(opts?: {
   onStatus?: (msg: string) => void;
   maxAttempts?: number;
 }): Promise<{ vaultEnabled: boolean; error?: string }> {
-  const identity = getCachedIdentity() ?? (await currentIdentity());
-  if (!identity) {
-    return { vaultEnabled: false, error: "not signed in" };
+  if (ensureSignedInVaultInflight) {
+    return ensureSignedInVaultInflight;
   }
-  const vault_id =
-    getSessionVaultId() || (await ensureSessionVaultId().catch(() => null));
-  if (!vault_id) {
-    return { vaultEnabled: false, error: "could not derive vault address" };
-  }
-  if (await probeVaultBackupEnabled(vault_id)) {
-    return { vaultEnabled: true };
-  }
-  // ensureAccountContracts already retries Put; outer loop covers reload / flaky WS
-  const maxAttempts = opts?.maxAttempts ?? 2;
-  let lastError = "account vault Put failed";
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
+  ensureSignedInVaultInflight = (async () => {
+    const identity = getCachedIdentity() ?? (await currentIdentity());
+    if (!identity) {
+      return { vaultEnabled: false, error: "not signed in" };
+    }
+    const vault_id =
+      getSessionVaultId() || (await ensureSessionVaultId().catch(() => null));
+    if (!vault_id) {
+      return { vaultEnabled: false, error: "could not derive vault address" };
+    }
+    // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+    // if (await probeVaultBackupEnabled(vault_id)) return { vaultEnabled: true };
+    // NEW CODE - TESTING: tri-state — unknown must not recreate
+    const reach = await probeVaultReachability(vault_id);
+    if (reach === "present") {
+      return { vaultEnabled: true };
+    }
+    if (reach === "unknown") {
       opts?.onStatus?.(
-        attempt === 1
-          ? "Account vault missing — creating on Freenet…"
-          : `Retrying account vault ensure (${attempt}/${maxAttempts})…`,
+        "Account vault unreachable right now — leaving existing vault alone.",
       );
-      await ensureAccountContracts({
-        identity,
-        vault_id,
-        username: identity.name,
-        email: identity.email || "",
-        syncFromVault: "none",
-        onStatus: opts?.onStatus,
-      });
-      if (await probeVaultBackupEnabled(vault_id)) {
-        opts?.onStatus?.("Account vault ready.");
-        return { vaultEnabled: true };
-      }
-      lastError = "vault Put completed but ciphertext not readable yet";
-    } catch (e) {
-      lastError = e instanceof Error ? e.message : String(e);
-      if (attempt < maxAttempts) {
-        await new Promise((r) => setTimeout(r, 1200 * attempt));
+      return { vaultEnabled: true };
+    }
+    // ensureAccountContracts already retries Put; outer loop covers reload / flaky WS
+    const maxAttempts = opts?.maxAttempts ?? 2;
+    let lastError = "account vault Put failed";
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        opts?.onStatus?.(
+          attempt === 1
+            ? "Account vault missing — creating on Freenet…"
+            : `Retrying account vault ensure (${attempt}/${maxAttempts})…`,
+        );
+        await ensureAccountContracts({
+          identity,
+          vault_id,
+          username: identity.name,
+          email: identity.email || "",
+          syncFromVault: "none",
+          onStatus: opts?.onStatus,
+        });
+        const after = await probeVaultReachability(vault_id);
+        if (after === "present" || after === "unknown") {
+          opts?.onStatus?.("Account vault ready.");
+          return { vaultEnabled: true };
+        }
+        lastError = "vault Put completed but ciphertext not readable yet";
+      } catch (e) {
+        lastError = e instanceof Error ? e.message : String(e);
+        if (attempt < maxAttempts) {
+          await new Promise((r) => setTimeout(r, 1200 * attempt));
+        }
       }
     }
-  }
-  return { vaultEnabled: false, error: lastError };
+    return { vaultEnabled: false, error: lastError };
+  })().finally(() => {
+    ensureSignedInVaultInflight = null;
+  });
+  return ensureSignedInVaultInflight;
 }
 
 /** Put empty passwordless vault if missing; leave existing vault alone. */
@@ -1438,10 +1517,26 @@ export async function ensurePasswordlessVault(input: {
   seedHex: string;
 }): Promise<void> {
   const vault_id = normalizeVaultId(input.vault_id);
-  const existing = await fetchForgeVault(vault_id).catch(() => null);
-  if (existing?.identity_dek_wrap?.blob_b64) {
-    setSessionVaultId(vault_id);
-    return;
+  // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+  // const existing = await fetchForgeVault(vault_id).catch(() => null);
+  // NEW CODE - TESTING: reliable GET; on timeout skip Put (do not wipe)
+  try {
+    const existing = await fetchForgeVault(vault_id, { reliable: true });
+    if (existing?.identity_dek_wrap?.blob_b64) {
+      setSessionVaultId(vault_id);
+      return;
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/timed out|timeout|Connection closed|1006/i.test(msg)) {
+      console.warn(
+        "[auth] vault GET uncertain — skipping empty Put to avoid wipe:",
+        msg,
+      );
+      setSessionVaultId(vault_id);
+      return;
+    }
+    throw err instanceof Error ? err : new Error(msg);
   }
   const reposMap = await collectReposMap();
   const state = await buildSignedVaultState({
@@ -1934,7 +2029,13 @@ export async function updatePublicProfile(input: {
   const bio = (input.bio ?? existing?.bio ?? "").trim().slice(0, 512);
   const url = (input.url ?? existing?.url ?? "").trim().slice(0, 512);
   const avatarNormalized = normalizeProfileAvatar(
-    (input.avatar ?? existing?.avatar ?? "").slice(0, 48_000),
+    // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+    // (input.avatar ?? existing?.avatar ?? "").slice(0, 48_000),
+    // NEW CODE - TESTING: match ForgeProfile WASM MAX_AVATAR
+    (input.avatar ?? existing?.avatar ?? "").slice(
+      0,
+      MAX_PROFILE_AVATAR_DATA_URL_CHARS,
+    ),
   );
 
   let identity: ForgeIdentityInfo;

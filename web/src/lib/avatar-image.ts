@@ -1,8 +1,24 @@
+/**
+ * ForgeProfile.avatar is an inline data-URL on the profile contract.
+ * Hard cap must stay ≤ contracts/forge-profile MAX_AVATAR (WASM rejects larger).
+ */
+// OLD CODE - KEEP UNTIL CONFIRMED WORKING
+// export const MAX_PROFILE_AVATAR_DATA_URL_CHARS = 1_048_576;
+// NEW CODE - TESTING: match WASM 16 MiB (~12 MiB raw GIF)
+export const MAX_PROFILE_AVATAR_DATA_URL_CHARS = 16_777_216;
+
+/** Approx raw file bytes that fit under the data-URL char budget. */
+export function maxProfileAvatarFileKiB(
+  maxChars = MAX_PROFILE_AVATAR_DATA_URL_CHARS,
+): number {
+  return Math.max(1, Math.floor((maxChars * 3) / 4 / 1024));
+}
+
 /** Resize an image File to a small data-URL for ForgeProfile custom avatar. */
 export async function resizeImageToDataUrl(
   file: File,
   maxPx = 128,
-  maxChars = 40_000,
+  maxChars = MAX_PROFILE_AVATAR_DATA_URL_CHARS,
 ): Promise<string> {
   if (!file.type.startsWith("image/")) {
     throw new Error("Choose an image file");
@@ -13,7 +29,8 @@ export async function resizeImageToDataUrl(
   // … canvas.drawImage → canvas.toDataURL("image/jpeg") …
   // Canvas always samples one frame and JPEG-encodes — animated GIFs became
   // static photos. normalizeProfileAvatar already allows data:image/gif.
-  // NEW CODE - TESTING: keep GIF bytes as gif data-URLs (size-capped)
+  // maxChars default was 40_000 (~29 KiB) — WASM MAX_AVATAR was 48_000.
+  // NEW CODE - TESTING: keep GIF bytes; default budget matches WASM 1 MiB chars
   const isGif =
     file.type === "image/gif" || /\.gif$/i.test(file.name || "");
   if (isGif) {
@@ -58,9 +75,8 @@ async function fileToAnimatedFriendlyDataUrl(
   }
   const dataUrl = `data:${mime};base64,${btoa(binary)}`;
   if (dataUrl.length > maxChars) {
-    const maxKiB = Math.max(1, Math.floor((maxChars * 3) / 4 / 1024));
     throw new Error(
-      `GIF is too large for profile storage (keep under ~${maxKiB} KiB so animation can be kept). Use a smaller GIF, or a still image.`,
+      `GIF is too large for profile storage (keep under ~${maxProfileAvatarFileKiB(maxChars)} KiB so animation can be kept). Use a smaller GIF, or a still image.`,
     );
   }
   return dataUrl;

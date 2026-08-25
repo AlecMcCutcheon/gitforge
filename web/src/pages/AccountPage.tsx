@@ -1242,7 +1242,9 @@ export function AccountPage() {
                       fingerprint={identity.fingerprint}
                       vaultId={vaultId}
                       avatarUrl={avatar || null}
-                      size={120}
+                      // OLD CODE - KEEP UNTIL CONFIRMED WORKING
+                      // size={120} — wrap/CSS are 200px; identicon grew, photo stayed 120
+                      size={200}
                       className="settings-avatar-img account-settings-identicon"
                     />
                   </div>
